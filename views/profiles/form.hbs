@@ -588,13 +588,12 @@ function formatLeadOutput(out) {
   // Mode banner
   if (out.mode === 'ai_prospecting') {
     html += '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:6px;padding:.5rem .65rem;margin-bottom:.6rem;font-size:.72rem;color:#f59e0b">'
-      + '<i class="bi bi-robot me-1"></i><strong>AI-Generated Leads</strong> — Scraping returned no data. '
-      + 'These leads are simulated by AI based on your profile. '
-      + 'Contact info is fictional. Check your Firecrawl API key and plan.'
+      + '<i class="bi bi-robot me-1"></i><strong>Simulated Leads</strong> — Scraping returned no data. '
+      + 'These are AI-generated for planning only. No real contact info.'
       + '</div>';
   } else {
     html += '<div style="background:rgba(25,135,84,.1);border:1px solid rgba(25,135,84,.3);border-radius:6px;padding:.5rem .65rem;margin-bottom:.6rem;font-size:.72rem;color:var(--uae-green)">'
-      + '<i class="bi bi-globe me-1"></i><strong>Real Leads</strong> — Extracted from live web data via Firecrawl.'
+      + '<i class="bi bi-globe me-1"></i><strong>Scraped Leads</strong> — Names, handles, and quotes extracted from real web content. Click profile links to verify.'
       + '</div>';
   }
 
@@ -629,21 +628,29 @@ function formatLeadOutput(out) {
     if (lead.phone) contactParts.push('<a href="tel:' + escHtml(lead.phone) + '" style="color:var(--uae-accent);text-decoration:none" title="Phone"><i class="bi bi-telephone-fill me-1"></i>' + escHtml(lead.phone) + '</a>');
     if (lead.social_handle) {
       if (lead.profile_url) {
-        contactParts.push('<a href="' + escHtml(lead.profile_url) + '" target="_blank" rel="noopener" style="color:var(--uae-accent);text-decoration:none" title="Social profile"><i class="bi bi-at me-0"></i>' + escHtml(lead.social_handle) + '</a>');
+        contactParts.push('<a href="' + escHtml(lead.profile_url) + '" target="_blank" rel="noopener" style="color:var(--uae-accent);text-decoration:none" title="View original post"><i class="bi bi-box-arrow-up-right me-1"></i>' + escHtml(lead.social_handle) + '</a>');
       } else {
         contactParts.push('<span style="color:var(--uae-accent)" title="Social handle"><i class="bi bi-at me-0"></i>' + escHtml(lead.social_handle) + '</span>');
       }
     } else if (lead.profile_url) {
-      contactParts.push('<a href="' + escHtml(lead.profile_url) + '" target="_blank" rel="noopener" style="color:var(--uae-accent);text-decoration:none" title="Profile link"><i class="bi bi-box-arrow-up-right me-1"></i>Profile</a>');
+      contactParts.push('<a href="' + escHtml(lead.profile_url) + '" target="_blank" rel="noopener" style="color:var(--uae-accent);text-decoration:none" title="View original post"><i class="bi bi-box-arrow-up-right me-1"></i>View Post</a>');
     }
     if (contactParts.length > 0) {
       html += '<div style="display:flex;flex-wrap:wrap;gap:.5rem;margin:.35rem 0;padding:.3rem .5rem;background:rgba(0,0,0,.15);border-radius:4px;font-size:.72rem;align-items:center">'
-        + contactParts.join('<span style="color:var(--uae-border)">|</span>')
+        + contactParts.join('<span style="color:var(--uae-border)"> | </span>')
+        + '</div>';
+    } else {
+      html += '<div style="margin:.35rem 0;padding:.3rem .5rem;background:rgba(0,0,0,.15);border-radius:4px;font-size:.7rem;color:var(--uae-text-muted)">'
+        + '<i class="bi bi-info-circle me-1"></i>No direct contact info found — reach out via the platform'
         + '</div>';
     }
+    // ── Source + date + tags row ──
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:.35rem;flex-wrap:wrap;gap:.3rem">'
-      + '<span style="color:var(--uae-text-muted);font-size:.7rem"><i class="bi bi-link-45deg me-1"></i>' + escHtml(lead.source || '') + '</span>'
-      + '<div>';
+      + '<span style="color:var(--uae-text-muted);font-size:.7rem"><i class="bi bi-link-45deg me-1"></i>' + escHtml(lead.source || '');
+    if (lead.post_date) {
+      html += ' <span style="color:var(--uae-text-muted);opacity:.7;margin-left:.3rem"><i class="bi bi-calendar3 me-1"></i>' + escHtml(lead.post_date) + '</span>';
+    }
+    html += '</span><div>';
     for (const tag of (lead.tags || [])) {
       html += '<span style="background:var(--uae-dark);border:1px solid var(--uae-border);color:var(--uae-text-muted);font-size:.58rem;padding:.1rem .3rem;border-radius:3px;margin-left:.2rem">' + escHtml(tag) + '</span>';
     }

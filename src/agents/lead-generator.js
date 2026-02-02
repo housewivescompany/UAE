@@ -15,26 +15,26 @@ const { getDb } = require('../db/connection');
 const { emitActivity } = require('../helpers/activity');
 const { v4: uuidv4 } = require('uuid');
 
-// Default sources by category
+// Default sources by category — include recency terms
 const DEFAULT_SOURCES = {
   business: [
-    { search: 'site:reddit.com "{service}" help needed', type: 'reddit' },
-    { search: 'site:reddit.com "{service}" recommendation', type: 'reddit' },
+    { search: 'site:reddit.com "{service}" help needed 2025', type: 'reddit' },
+    { search: 'site:reddit.com "{service}" recommendation 2025', type: 'reddit' },
     { search: 'site:nextdoor.com "{service}" looking for', type: 'nextdoor' },
-    { search: '"{service}" near me reviews complaints', type: 'google' },
-    { search: 'site:facebook.com "{service}" who do you recommend', type: 'facebook' },
+    { search: '"{service}" near me need help 2025', type: 'google' },
+    { search: 'site:facebook.com "{service}" who do you recommend 2025', type: 'facebook' },
     { search: 'site:twitter.com "{service}" need help', type: 'twitter' },
     { search: '"{industry}" emergency help needed today', type: 'google' },
-    { search: 'site:yelp.com "{industry}" "{location}" reviews', type: 'yelp' },
+    { search: 'site:yelp.com "{industry}" "{location}" recent reviews', type: 'yelp' },
   ],
   political: [
     { search: 'site:reddit.com "{riding}" election 2025', type: 'reddit' },
-    { search: 'site:reddit.com "{policy}" Canada opinion', type: 'reddit' },
-    { search: '"{riding}" voters "{policy}" concerned', type: 'google' },
-    { search: 'site:twitter.com "{candidate}" "{riding}"', type: 'twitter' },
-    { search: '"{riding}" community group "{policy}"', type: 'google' },
-    { search: 'site:facebook.com "{riding}" election discussion', type: 'facebook' },
-    { search: '"{candidate}" "{party}" supporter', type: 'google' },
+    { search: 'site:reddit.com "{policy}" Canada opinion 2025', type: 'reddit' },
+    { search: '"{riding}" voters "{policy}" concerned 2025', type: 'google' },
+    { search: 'site:twitter.com "{candidate}" "{riding}" 2025', type: 'twitter' },
+    { search: '"{riding}" community group "{policy}" 2025', type: 'google' },
+    { search: 'site:facebook.com "{riding}" election discussion 2025', type: 'facebook' },
+    { search: '"{candidate}" "{party}" supporter 2025', type: 'google' },
   ],
 };
 
@@ -204,6 +204,7 @@ class LeadGeneratorAgent extends BaseAgent {
           profile_url: c.profile_url || null,
           source: c.source,
           hook: c.hook,
+          post_date: c.post_date || null,
           relevance_score: c.relevance_score,
           tags: c.tags,
         })),
@@ -291,78 +292,84 @@ class LeadGeneratorAgent extends BaseAgent {
       isPolitical ? profile.policy_objections : profile.price_objections
     );
 
-    let contextBlock;
+    let systemPrompt, userMessage;
+
     if (mode === 'scraped') {
-      contextBlock = scrapedContent.map(s =>
-        `[Source: ${s.source} (${s.source_type})]\n${s.content}`
-      ).join('\n\n---\n\n').substring(0, 6000);
+      // ── SCRAPED MODE: extract real data only, never fabricate ──
+      const contextBlock = scrapedContent.map(s =>
+        `[Source URL: ${s.source}] [Platform: ${s.source_type}]\n${s.content}`
+      ).join('\n\n---\n\n').substring(0, 8000);
+
+      const profileContext = isPolitical
+        ? `Campaign for ${profile.candidate_name || 'a candidate'} (${profile.candidate_party || ''}) in ${profile.riding_name || 'a riding'}. Policy pillars: ${pillars.join(', ') || 'N/A'}.`
+        : `Business: ${profile.industry_context || 'a service business'}. Services: ${services.join(', ') || 'N/A'}.`;
+
+      systemPrompt = `You are a lead extraction analyst. You will receive REAL scraped web content from social media, forums, and review sites.
+
+Your job is to find REAL people in this content who could be leads. ${profileContext}
+
+STRICT RULES — FOLLOW EXACTLY:
+1. Only extract people who ACTUALLY APPEAR in the scraped content. Every lead must come from the text provided.
+2. NEVER invent or fabricate names, usernames, emails, or phone numbers. If the content doesn't contain a piece of info, set it to null.
+3. Extract the EXACT username/handle as it appears (e.g. "u/leaky_pipe_guy", "@jane_smith", the actual poster name)
+4. The profile_url should be the ACTUAL source URL from the [Source URL: ...] tag where you found this person, or null if unclear
+5. The social_handle must be the person's REAL username from the content, not an invented one
+6. email and phone should be null unless they literally appear in the scraped text (they almost never will on social media — that's fine)
+7. RECENCY: Skip posts that appear to be older than ~3 months. Look for date indicators in the content. Prioritize recent posts.
+8. The "hook" must be a REAL quote or close paraphrase of what the person actually said in the content
+
+For EACH lead return:
+- first_name: real name if visible, otherwise use their username (e.g. "u/leaky_pipe_guy")
+- last_name: real last name if visible, otherwise null
+- email: null (unless explicitly posted in the content)
+- phone: null (unless explicitly posted in the content)
+- social_handle: their EXACT username from the platform (e.g. "u/homeowner_123", "@plumbing_help")
+- profile_url: the EXACT source URL where you found them${isPolitical ? '' : '\n- company: if mentioned, otherwise null'}
+- source: platform name (e.g. "Reddit r/plumbing", "Yelp", "Twitter")
+- hook: EXACT quote of what they said that makes them a lead
+- post_date: approximate date of the post if visible (e.g. "2025-01", "recent", "2024-12"), or null
+- relevance_score: 0-100 (higher for recent, urgent, specific needs)
+- tags: array of relevant tags${isPolitical ? ' like ["policy_concerned", "donor_potential", "volunteer_potential"]' : ' like ["urgent_need", "price_sensitive", "high_value", "residential", "commercial"]'}
+${isPolitical ? '- issues: array of policy issues they care about' : ''}
+
+Return up to ${maxLeads} leads as a valid JSON array. If fewer real leads exist in the content, return fewer — NEVER pad with fake ones. No markdown, no explanation.`;
+
+      userMessage = `Extract real leads from this scraped web content:\n\n${contextBlock}`;
+
     } else {
-      // AI prospecting — give the LLM rich context to generate realistic leads
-      contextBlock = `NO SCRAPED DATA AVAILABLE — Generate realistic prospect leads.
-
-Use your knowledge of typical ${isPolitical ? 'voter/constituent' : 'customer'} profiles for this type of ${isPolitical ? 'campaign' : 'business'}.
-
-Generate leads that look like real people you'd find on social media, community forums, and local discussions.
-Each lead should have a realistic name, a plausible source (Reddit, Facebook group, Nextdoor, Twitter, Google review, Yelp, etc.), and a specific "hook" — the exact thing they said or concern they expressed that makes them a lead.
-
-Make each lead DIFFERENT — vary the demographics, concerns, urgency levels, and sources.`;
-    }
-
-    const systemPrompt = isPolitical
-      ? `You are a campaign intelligence analyst for ${profile.candidate_name || 'a candidate'} (${profile.candidate_party || ''}) in ${profile.riding_name || 'a riding'}.
-
-Generate ${maxLeads} potential constituent leads. Each must be a realistic person who could be engaged by this campaign.
-
-Candidate: ${profile.candidate_name || 'N/A'}
-Party: ${profile.candidate_party || 'N/A'}
-Riding: ${profile.riding_name || 'N/A'}
+      // ── AI PROSPECTING MODE: generate simulated leads, clearly marked ──
+      const aiContext = isPolitical
+        ? `Campaign: ${profile.candidate_name || 'a candidate'} (${profile.candidate_party || ''}) in ${profile.riding_name || 'a riding'}.
 Policy Pillars: ${pillars.join(', ') || 'N/A'}
-Common Objections: ${objections.join(', ') || 'N/A'}
 Target Demographic: ${profile.target_persona || 'Voters'}
-Tone Notes: ${profile.exhaustion_gap || 'N/A'}
-
-CRITICAL — Every lead MUST include contact info so we can actually reach them:
-- first_name, last_name
-- email: realistic email address (e.g. "sarah.chen@gmail.com") — generate one for every lead
-- phone: phone number with area code when plausible (e.g. "613-555-0142") — include for ~60% of leads
-- social_handle: their username on the platform (e.g. "@sarah_chen", "u/concerned_voter_613") — always include
-- profile_url: direct link to their post or profile (e.g. "https://reddit.com/r/ontario/comments/abc123", "https://twitter.com/sarah_chen/status/123456") — always include
-- source: realistic platform (e.g. "Reddit r/ontario", "Facebook - Ottawa Community Group", "Twitter", "Nextdoor Ottawa Centre")
-- hook: SPECIFIC thing they said/posted (1-2 sentences, realistic social media language)
-- issues: array of 1-3 policy issues they care about
-- relevance_score: 0-100
-- tags: array like ["donor_potential", "volunteer_potential", "young_voter", "concerned_parent"]
-
-Return ONLY a valid JSON array. No markdown, no explanation.`
-
-      : `You are a lead generation specialist for: ${profile.industry_context || 'a service business'}.
-
-Generate ${maxLeads} potential customer leads. Each must be a realistic person who needs these services.
-
+Tone Notes: ${profile.exhaustion_gap || 'N/A'}`
+        : `Business: ${profile.industry_context || 'a service business'}.
 Services: ${services.join(', ') || 'N/A'}
-Common Objections: ${objections.join(', ') || 'N/A'}
-Target Customer: ${profile.target_persona || 'Homeowners'}
+Target Customer: ${profile.target_persona || 'Homeowners'}`;
 
-CRITICAL — Every lead MUST include contact info so we can actually reach them:
-- first_name, last_name
-- company: if applicable (null for residential)
-- email: realistic email address (e.g. "mike.johnson@gmail.com") — generate one for every lead
-- phone: phone number with area code when plausible (e.g. "416-555-0198") — include for ~60% of leads
-- social_handle: their username on the platform (e.g. "@mike_j_plumbing", "u/flooded_basement_guy") — always include
-- profile_url: direct link to their post or profile (e.g. "https://reddit.com/r/plumbing/comments/abc123", "https://nextdoor.com/p/abc123") — always include
-- source: realistic platform (e.g. "Reddit r/plumbing", "Nextdoor - Oakville", "Google Reviews", "Facebook - GTA Homeowners", "Yelp", "Twitter")
-- hook: SPECIFIC thing they posted/said (1-2 sentences, realistic social media language, e.g. "My basement flooded at 2am and I can't find anyone available")
+      systemPrompt = `You are a lead generation simulator. Scraping returned no data, so generate ${maxLeads} SIMULATED prospect leads for outreach planning.
+
+${aiContext}
+
+These are SIMULATED leads for planning purposes. For each lead:
+- first_name, last_name: realistic names
+- email: null (do NOT fabricate emails — they would be useless)
+- phone: null (do NOT fabricate phone numbers)
+- social_handle: a plausible but clearly simulated handle (prefix with "~" to indicate simulated, e.g. "~u/simulated_user")
+- profile_url: null (no real URL exists)${isPolitical ? '' : '\n- company: if applicable, otherwise null'}
+- source: platform name with "(simulated)" suffix, e.g. "Reddit r/plumbing (simulated)"
+- hook: a realistic concern or statement this type of person would make
+- post_date: null
 - relevance_score: 0-100
-- tags: array like ["urgent_need", "price_sensitive", "high_value", "commercial", "residential"]
+- tags: array of relevant tags
 
 Return ONLY a valid JSON array. No markdown, no explanation.`;
 
-    const userMessage = mode === 'scraped'
-      ? `Extract leads from this scraped content:\n\n${contextBlock}`
-      : `${contextBlock}\n\nGenerate exactly ${maxLeads} realistic leads now.`;
+      userMessage = `Generate exactly ${maxLeads} simulated leads now.`;
+    }
 
     const result = await this.llm.complete(systemPrompt, userMessage, {
-      temperature: 0.7,
+      temperature: mode === 'scraped' ? 0.2 : 0.7,
       maxTokens: 4000,
     });
 
