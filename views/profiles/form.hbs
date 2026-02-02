@@ -163,6 +163,24 @@
             <label class="form-label">Max Leads</label>
             <input type="number" id="run_lg_max" class="form-control form-control-sm" value="10" min="1" max="50">
           </div>
+          <div class="mb-2">
+            <label class="form-label">Recency</label>
+            <select id="run_lg_recency" class="form-select form-select-sm">
+              {{#if (eq profile.mode 'political')}}
+              <option value="6months">Last 6 months</option>
+              <option value="3months" selected>Last 3 months</option>
+              <option value="1month">Last month</option>
+              <option value="1week">Last week</option>
+              <option value="any">Any time</option>
+              {{else}}
+              <option value="1week" selected>Last week</option>
+              <option value="1month">Last month</option>
+              <option value="3months">Last 3 months</option>
+              <option value="6months">Last 6 months</option>
+              <option value="any">Any time</option>
+              {{/if}}
+            </select>
+          </div>
           <div style="font-size:.7rem;color:var(--uae-text-muted);margin-bottom:.5rem">
             <i class="bi bi-info-circle me-1"></i>Keywords auto-populated from your profile. The agent also searches Reddit, Twitter, Nextdoor, Facebook, Google, and Yelp automatically.
           </div>
@@ -434,6 +452,7 @@ function runAgent() {
       sources: document.getElementById('run_lg_sources').value.split('\n').filter(Boolean),
       keywords: document.getElementById('run_lg_keywords').value.split('\n').filter(Boolean),
       max_leads: parseInt(document.getElementById('run_lg_max').value) || 10,
+      recency: document.getElementById('run_lg_recency').value,
     };
   } else if (agentType === 'researcher') {
     inputData = {

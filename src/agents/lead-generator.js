@@ -41,8 +41,9 @@ const DEFAULT_SOURCES = {
 class LeadGeneratorAgent extends BaseAgent {
   async execute(runId, profile, input) {
     try {
-      const { sources, keywords, max_leads } = input;
+      const { sources, keywords, max_leads, recency } = input;
       const maxLeads = max_leads || 10;
+      const recencyFilter = recency || (profile.mode === 'political' ? '3months' : '1week');
       const db = getDb();
 
       emitActivity(profile.id, {
@@ -54,8 +55,8 @@ class LeadGeneratorAgent extends BaseAgent {
         detail: `Target: ${maxLeads} leads`,
       });
 
-      // Build search queries — defaults + user overrides
-      const searchQueries = this.buildSearchQueries(profile, keywords, sources);
+      // Build search queries — defaults + user overrides + recency
+      const searchQueries = this.buildSearchQueries(profile, keywords, sources, recencyFilter);
 
       emitActivity(profile.id, {
         agentRunId: runId,
@@ -131,7 +132,7 @@ class LeadGeneratorAgent extends BaseAgent {
       });
 
       // Generate leads (always succeeds)
-      const leads = await this.generateLeads(profile, allScrapedContent, maxLeads, mode);
+      const leads = await this.generateLeads(profile, allScrapedContent, maxLeads, mode, recencyFilter);
 
       // Create contact records
       const createdContacts = [];
@@ -229,8 +230,18 @@ class LeadGeneratorAgent extends BaseAgent {
   /**
    * Build search queries with smart defaults + user overrides
    */
-  buildSearchQueries(profile, keywords, sources) {
+  buildSearchQueries(profile, keywords, sources, recency) {
     const queries = [];
+
+    // Map recency to a search-engine-friendly date hint
+    const recencyTerms = {
+      '1week': 'past week',
+      '1month': 'past month',
+      '3months': '2025',
+      '6months': '2025',
+      'any': '',
+    };
+    const dateSuffix = recencyTerms[recency] || '2025';
 
     // User-provided URLs first
     for (const url of (sources || []).filter(Boolean)) {
@@ -244,7 +255,8 @@ class LeadGeneratorAgent extends BaseAgent {
     const pillars = this.parseJsonArray(profile.policy_pillars);
 
     for (const tpl of templates) {
-      let search = tpl.search;
+      // Strip any hardcoded year from the template — we'll add the recency suffix
+      let search = tpl.search.replace(/ 2025$/, '');
       if (isPolitical) {
         for (const pillar of (pillars.length ? pillars.slice(0, 2) : ['policy'])) {
           let q = search
@@ -252,6 +264,7 @@ class LeadGeneratorAgent extends BaseAgent {
             .replace('{policy}', pillar)
             .replace('{candidate}', profile.candidate_name || '')
             .replace('{party}', profile.candidate_party || '');
+          if (dateSuffix) q += ' ' + dateSuffix;
           queries.push({ search: q.trim(), type: tpl.type });
         }
       } else {
@@ -261,14 +274,19 @@ class LeadGeneratorAgent extends BaseAgent {
             .replace('{service}', svc)
             .replace('{industry}', industryContext)
             .replace('{location}', '');
+          if (dateSuffix) q += ' ' + dateSuffix;
           queries.push({ search: q.trim(), type: tpl.type });
         }
       }
     }
 
-    // User keywords
+    // User keywords — also append recency
     for (const k of (keywords || []).filter(Boolean)) {
-      queries.push({ search: k, type: 'keyword' });
+      let q = k;
+      if (dateSuffix && !q.includes('2025') && !q.includes('week') && !q.includes('month')) {
+        q += ' ' + dateSuffix;
+      }
+      queries.push({ search: q, type: 'keyword' });
     }
 
     // Deduplicate
@@ -284,13 +302,23 @@ class LeadGeneratorAgent extends BaseAgent {
   /**
    * Generate leads — from scraped data or pure AI prospecting
    */
-  async generateLeads(profile, scrapedContent, maxLeads, mode) {
+  async generateLeads(profile, scrapedContent, maxLeads, mode, recency) {
     const isPolitical = profile.mode === 'political';
     const services = this.parseJsonArray(profile.service_offerings);
     const pillars = this.parseJsonArray(profile.policy_pillars);
     const objections = this.parseJsonArray(
       isPolitical ? profile.policy_objections : profile.price_objections
     );
+
+    // Human-readable recency label for the LLM prompt
+    const recencyLabels = {
+      '1week': 'the last 7 days only — anything older is stale',
+      '1month': 'the last 30 days — skip older posts',
+      '3months': 'the last 3 months — skip anything clearly older',
+      '6months': 'the last 6 months',
+      'any': 'any time period (no date restriction)',
+    };
+    const recencyRule = recencyLabels[recency] || recencyLabels['1week'];
 
     let systemPrompt, userMessage;
 
@@ -322,7 +350,7 @@ STRICT RULES — FOLLOW EXACTLY:
 4. The profile_url should be the ACTUAL source URL from the [Source URL: ...] tag where you found this person, or null if unclear
 5. The social_handle must be the person's REAL username from the content, not an invented one
 6. email and phone should ONLY be included if they literally appear in the scraped text next to the person's post. A phone number in a business advertisement is NOT lead contact info — it belongs to a competitor.
-7. RECENCY: Skip posts that appear to be older than ~3 months. Look for date indicators in the content. Prioritize recent posts.
+7. RECENCY: Only include posts from ${recencyRule}. Look for date indicators in the content (timestamps, "2 days ago", "Jan 2025", etc). If a post appears older than the cutoff, SKIP IT. Prioritize the most recent posts.
 8. The "hook" must be a REAL quote or close paraphrase of what the person actually said in the content
 9. FILTER OUT businesses, service providers, advertisers, and competitors. Only include people who are SEEKING help, not offering it.
 
