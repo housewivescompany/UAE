@@ -1,0 +1,322 @@
+<div class="page-header">
+  <h2><i class="bi bi-inbox me-2"></i>Lead Queue</h2>
+  <div class="d-flex gap-2">
+    <select class="form-select form-select-sm" style="width:auto;background:var(--uae-dark);border-color:var(--uae-border);color:var(--uae-text);font-size:.8rem" onchange="applyFilter('profile',this.value)">
+      <option value="">All Profiles</option>
+      {{#each profiles}}
+      <option value="{{this.id}}" {{#if (eq this.id ../selectedProfile)}}selected{{/if}}>{{this.name}} ({{this.mode}})</option>
+      {{/each}}
+    </select>
+    <select class="form-select form-select-sm" style="width:auto;background:var(--uae-dark);border-color:var(--uae-border);color:var(--uae-text);font-size:.8rem" onchange="applyFilter('status',this.value)">
+      <option value="">Active Leads</option>
+      <option value="cold" {{#if (eq selectedStatus "cold")}}selected{{/if}}>Cold</option>
+      <option value="warm" {{#if (eq selectedStatus "warm")}}selected{{/if}}>Warm</option>
+      <option value="hot" {{#if (eq selectedStatus "hot")}}selected{{/if}}>Hot</option>
+      <option value="converted" {{#if (eq selectedStatus "converted")}}selected{{/if}}>Converted</option>
+      <option value="lost" {{#if (eq selectedStatus "lost")}}selected{{/if}}>Lost / Skipped</option>
+    </select>
+  </div>
+</div>
+
+<!-- ── Stats row ────────────────────────────────────── -->
+<div class="stat-grid">
+  <div class="uae-card">
+    <div class="card-label">In Queue</div>
+    <div class="card-value">{{totalLeads}}</div>
+    <div class="card-sub">leads awaiting outreach</div>
+  </div>
+  <div class="uae-card">
+    <div class="card-label">Drafts Ready</div>
+    <div class="card-value" style="color:var(--uae-green)">{{withDrafts}}</div>
+    <div class="card-sub">messages ready to send</div>
+  </div>
+  <div class="uae-card">
+    <div class="card-label">Need Drafts</div>
+    <div class="card-value" style="color:var(--uae-orange)">{{needsDrafts}}</div>
+    <div class="card-sub">leads without a draft</div>
+  </div>
+</div>
+
+{{#if contacts.length}}
+<!-- ── Bulk bar ──────────────────────────────────────── -->
+<div class="uae-card mb-3" style="padding:.75rem 1.25rem;display:flex;justify-content:space-between;align-items:center">
+  <span style="font-size:.8rem;color:var(--uae-text-muted)">{{totalLeads}} leads shown</span>
+  <button class="btn-uae" style="font-size:.78rem;padding:.35rem .9rem" onclick="generateAllDrafts()">
+    <i class="bi bi-magic me-1"></i> Generate All Drafts
+  </button>
+</div>
+
+<!-- ── Lead cards ────────────────────────────────────── -->
+<div id="lead-cards">
+{{#each contacts}}
+  <div class="uae-card mb-2" id="lead-{{this.id}}" data-profile-url="{{this.profile_url}}" style="padding:1rem 1.25rem">
+
+    <!-- ── Header row ──────────────────────────────── -->
+    <div class="d-flex align-items-center gap-2 flex-wrap" style="margin-bottom:.4rem">
+      <span style="font-weight:700;color:#fff;font-size:.95rem">
+        {{#if this.first_name}}{{this.first_name}} {{this.last_name}}{{else}}{{this.social_handle}}{{/if}}
+      </span>
+
+      {{#if this.social_handle}}
+      <span style="font-size:.78rem;color:var(--uae-accent)">{{this.social_handle}}</span>
+      {{/if}}
+
+      <span class="badge {{#if (eq this.profile_mode 'political')}}badge-political{{else}}badge-business{{/if}}" style="font-size:.6rem">
+        {{this.profile_name}}
+      </span>
+      <span class="badge {{badgeClass this.lead_status}}" style="font-size:.6rem">{{this.lead_status}}</span>
+
+      <!-- Platform badge -->
+      <span class="badge bg-dark" style="font-size:.6rem">
+        {{#if (eq this.platform 'reddit')}}<i class="bi bi-reddit"></i> Reddit{{/if}}
+        {{#if (eq this.platform 'twitter')}}<i class="bi bi-twitter-x"></i> Twitter{{/if}}
+        {{#if (eq this.platform 'facebook')}}<i class="bi bi-facebook"></i> Facebook{{/if}}
+        {{#if (eq this.platform 'linkedin')}}<i class="bi bi-linkedin"></i> LinkedIn{{/if}}
+        {{#if (eq this.platform 'nextdoor')}}<i class="bi bi-house-door"></i> Nextdoor{{/if}}
+        {{#if (eq this.platform 'email')}}<i class="bi bi-envelope"></i> Email{{/if}}
+        {{#if (eq this.platform 'sms')}}<i class="bi bi-phone"></i> SMS{{/if}}
+        {{#if (eq this.platform 'dm')}}<i class="bi bi-chat-dots"></i> DM{{/if}}
+      </span>
+    </div>
+
+    <!-- ── Contact info row ────────────────────────── -->
+    <div style="font-size:.75rem;color:var(--uae-text-muted);margin-bottom:.5rem">
+      {{#if this.email}}<i class="bi bi-envelope me-1"></i><a href="mailto:{{this.email}}" style="color:var(--uae-text-muted);text-decoration:none">{{this.email}}</a> &nbsp;{{/if}}
+      {{#if this.phone}}<i class="bi bi-telephone me-1"></i>{{this.phone}} &nbsp;{{/if}}
+      {{#if this.profile_url}}<a href="{{this.profile_url}}" target="_blank" rel="noopener" style="color:var(--uae-accent);text-decoration:none"><i class="bi bi-link-45deg me-1"></i>Profile</a> &nbsp;{{/if}}
+      {{#if this.source}}<i class="bi bi-geo-alt me-1"></i>{{this.source}}{{/if}}
+    </div>
+
+    <!-- ── Context / notes ─────────────────────────── -->
+    {{#if this.notes}}
+    <div style="font-size:.8rem;color:var(--uae-text);background:var(--uae-dark);border-radius:6px;padding:.5rem .75rem;margin-bottom:.75rem;border-left:3px solid var(--uae-accent)">
+      {{truncate this.notes 250}}
+    </div>
+    {{/if}}
+
+    <!-- ── Draft area ──────────────────────────────── -->
+    <div class="draft-area" id="draft-{{this.id}}">
+      {{#if this.draft_message}}
+        <!-- Existing draft -->
+        <textarea class="form-control draft-text" id="draft-text-{{this.id}}"
+          style="background:var(--uae-dark);border-color:var(--uae-border);color:var(--uae-text);font-size:.82rem;min-height:80px;resize:vertical"
+        >{{this.draft_message}}
+---
+This message was drafted with AI assistance.</textarea>
+        <div class="d-flex gap-2 mt-2 flex-wrap">
+          <button class="btn-uae-green" style="font-size:.75rem;padding:.3rem .75rem;border:none;border-radius:5px;color:#fff;cursor:pointer" onclick="copyAndOpen('{{this.id}}')">
+            <i class="bi bi-clipboard-check me-1"></i> Copy &amp; Open
+          </button>
+          <button class="btn-uae" style="font-size:.75rem;padding:.3rem .75rem;cursor:pointer" onclick="generateDraft('{{this.id}}')">
+            <i class="bi bi-arrow-repeat me-1"></i> Regenerate
+          </button>
+          <button class="btn-uae-outline" style="font-size:.75rem;padding:.3rem .75rem;cursor:pointer" onclick="markDone('{{this.id}}')">
+            <i class="bi bi-check2 me-1"></i> Done
+          </button>
+          <button class="btn-uae-outline" style="font-size:.75rem;padding:.3rem .75rem;cursor:pointer" onclick="skipLead('{{this.id}}')">
+            <i class="bi bi-skip-forward me-1"></i> Skip
+          </button>
+        </div>
+
+      {{else if (eq this.draft_status 'running')}}
+        <!-- Draft is generating -->
+        <div style="text-align:center;padding:.75rem;color:var(--uae-text-muted)">
+          <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+          Generating draft&hellip;
+        </div>
+
+      {{else}}
+        <!-- No draft yet -->
+        <div class="d-flex gap-2">
+          <button class="btn-uae" style="font-size:.78rem;padding:.35rem .9rem;cursor:pointer" onclick="generateDraft('{{this.id}}')">
+            <i class="bi bi-magic me-1"></i> Generate Draft
+          </button>
+          <button class="btn-uae-outline" style="font-size:.75rem;padding:.3rem .75rem;cursor:pointer" onclick="skipLead('{{this.id}}')">
+            <i class="bi bi-skip-forward me-1"></i> Skip
+          </button>
+        </div>
+      {{/if}}
+    </div>
+  </div>
+{{/each}}
+</div>
+
+{{else}}
+<!-- ── Empty state ──────────────────────────────────── -->
+<div class="uae-card text-center py-5">
+  <i class="bi bi-inbox" style="font-size:3rem;color:var(--uae-text-muted)"></i>
+  <h5 style="color:#fff;margin-top:1rem">Queue Empty</h5>
+  <p style="color:var(--uae-text-muted)">
+    No leads awaiting outreach. Run the <strong>Lead Generator</strong> on a profile to discover new leads.
+  </p>
+  <a href="/profiles" class="btn-uae" style="text-decoration:none;display:inline-block;margin-top:.5rem">
+    <i class="bi bi-sliders2 me-1"></i> Go to Profiles
+  </a>
+</div>
+{{/if}}
+
+<script>
+/* ── Generate draft for one lead ─────────────────────── */
+async function generateDraft(contactId) {
+  var area = document.getElementById('draft-' + contactId);
+  area.innerHTML =
+    '<div style="text-align:center;padding:.75rem;color:var(--uae-text-muted)">' +
+    '<div class="spinner-border spinner-border-sm me-2" role="status"></div>' +
+    'Generating draft&hellip;</div>';
+
+  try {
+    var resp = await fetch('/queue/' + contactId + '/draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    });
+    var data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    pollDraft(contactId, data.run_id);
+  } catch (err) {
+    area.innerHTML =
+      '<div style="color:var(--uae-red);font-size:.82rem">' +
+      '<i class="bi bi-exclamation-triangle me-1"></i> ' + escapeHtml(err.message) +
+      '</div>';
+  }
+}
+
+/* ── Poll for draft completion ───────────────────────── */
+function pollDraft(contactId, runId) {
+  var iv = setInterval(async function () {
+    try {
+      var resp = await fetch('/queue/poll/' + runId);
+      var data = await resp.json();
+      if (data.status === 'completed') {
+        clearInterval(iv);
+        showDraft(contactId, data.message);
+      } else if (data.status === 'failed') {
+        clearInterval(iv);
+        var area = document.getElementById('draft-' + contactId);
+        area.innerHTML =
+          '<div style="color:var(--uae-red);font-size:.82rem">' +
+          '<i class="bi bi-exclamation-triangle me-1"></i> ' +
+          escapeHtml(data.error || 'Draft generation failed') +
+          '<br><button class="btn-uae mt-2" style="font-size:.75rem;padding:.3rem .75rem;cursor:pointer" onclick="generateDraft(\'' + contactId + '\')">' +
+          '<i class="bi bi-arrow-repeat me-1"></i> Retry</button></div>';
+      }
+    } catch (e) { /* retry next tick */ }
+  }, 2000);
+}
+
+/* ── Render a completed draft ────────────────────────── */
+function showDraft(contactId, message) {
+  var area = document.getElementById('draft-' + contactId);
+  var full = message + '\n\n---\nThis message was drafted with AI assistance.';
+
+  area.innerHTML =
+    '<textarea class="form-control draft-text" id="draft-text-' + contactId + '"' +
+    ' style="background:var(--uae-dark);border-color:var(--uae-border);color:var(--uae-text);font-size:.82rem;min-height:80px;resize:vertical">' +
+    escapeHtml(full) + '</textarea>' +
+    '<div class="d-flex gap-2 mt-2 flex-wrap">' +
+      '<button class="btn-uae-green" style="font-size:.75rem;padding:.3rem .75rem;border:none;border-radius:5px;color:#fff;cursor:pointer" onclick="copyAndOpen(\'' + contactId + '\')">' +
+        '<i class="bi bi-clipboard-check me-1"></i> Copy &amp; Open</button>' +
+      '<button class="btn-uae" style="font-size:.75rem;padding:.3rem .75rem;cursor:pointer" onclick="generateDraft(\'' + contactId + '\')">' +
+        '<i class="bi bi-arrow-repeat me-1"></i> Regenerate</button>' +
+      '<button class="btn-uae-outline" style="font-size:.75rem;padding:.3rem .75rem;cursor:pointer" onclick="markDone(\'' + contactId + '\')">' +
+        '<i class="bi bi-check2 me-1"></i> Done</button>' +
+      '<button class="btn-uae-outline" style="font-size:.75rem;padding:.3rem .75rem;cursor:pointer" onclick="skipLead(\'' + contactId + '\')">' +
+        '<i class="bi bi-skip-forward me-1"></i> Skip</button>' +
+    '</div>';
+}
+
+/* ── Copy draft text & open profile URL ──────────────── */
+async function copyAndOpen(contactId) {
+  var ta = document.getElementById('draft-text-' + contactId);
+  if (ta) {
+    try { await navigator.clipboard.writeText(ta.value); }
+    catch (e) {
+      // Fallback: select text
+      ta.select();
+      document.execCommand('copy');
+    }
+  }
+
+  var card = document.getElementById('lead-' + contactId);
+  var profileUrl = card ? card.getAttribute('data-profile-url') : '';
+  if (profileUrl) window.open(profileUrl, '_blank');
+
+  // Flash feedback
+  if (event && event.target) {
+    var btn = event.target.closest('button');
+    if (btn) {
+      var orig = btn.innerHTML;
+      btn.innerHTML = '<i class="bi bi-check2 me-1"></i> Copied!';
+      btn.style.background = 'var(--uae-green)';
+      setTimeout(function () { btn.innerHTML = orig; btn.style.background = ''; }, 2000);
+    }
+  }
+}
+
+/* ── Mark lead as done ───────────────────────────────── */
+async function markDone(contactId) {
+  await updateStatus(contactId, 'converted');
+  fadeOut(contactId);
+}
+
+/* ── Skip lead ───────────────────────────────────────── */
+async function skipLead(contactId) {
+  await updateStatus(contactId, 'lost');
+  fadeOut(contactId);
+}
+
+/* ── Status API call ─────────────────────────────────── */
+async function updateStatus(contactId, status) {
+  try {
+    await fetch('/queue/' + contactId + '/status', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: status }),
+    });
+  } catch (err) {
+    console.error('Status update failed:', err);
+  }
+}
+
+/* ── Fade card out ───────────────────────────────────── */
+function fadeOut(contactId) {
+  var card = document.getElementById('lead-' + contactId);
+  if (card) {
+    card.style.transition = 'opacity .3s, max-height .3s';
+    card.style.opacity = '0.3';
+    setTimeout(function () { card.style.maxHeight = '0'; card.style.overflow = 'hidden'; card.style.padding = '0'; card.style.margin = '0'; }, 350);
+    setTimeout(function () { card.remove(); }, 650);
+  }
+}
+
+/* ── Generate all missing drafts ─────────────────────── */
+async function generateAllDrafts() {
+  var cards = document.querySelectorAll('[id^="lead-"]');
+  var btn = event.target.closest('button');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<div class="spinner-border spinner-border-sm me-1" role="status"></div> Generating&hellip;'; }
+
+  for (var i = 0; i < cards.length; i++) {
+    var id = cards[i].id.replace('lead-', '');
+    var area = document.getElementById('draft-' + id);
+    if (area && !area.querySelector('.draft-text')) {
+      await generateDraft(id);
+      await new Promise(function (r) { setTimeout(r, 800); });
+    }
+  }
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-magic me-1"></i> Generate All Drafts'; }
+}
+
+/* ── Filter helpers ──────────────────────────────────── */
+function applyFilter(key, value) {
+  var url = new URL(window.location);
+  if (value) url.searchParams.set(key, value);
+  else url.searchParams.delete(key);
+  window.location = url;
+}
+
+function escapeHtml(text) {
+  var d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+</script>

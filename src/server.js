@@ -75,6 +75,7 @@ app.use('/agents', require('./routes/agents'));
 app.use('/integrations', require('./routes/integrations'));
 app.use('/sentiment', require('./routes/sentiment'));
 app.use('/activity', require('./routes/activity'));
+app.use('/queue', require('./routes/queue'));
 app.use('/api', require('./routes/api'));
 
 // ── 404 ───────────────────────────────────────────────
