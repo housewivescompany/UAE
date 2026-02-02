@@ -1,0 +1,78 @@
+<div class="page-header">
+  <h2><i class="bi bi-people me-2"></i>Contacts</h2>
+  <div class="d-flex gap-2">
+    <select class="form-select form-select-sm" style="width:auto;background:var(--uae-dark);border-color:var(--uae-border);color:var(--uae-text);font-size:.8rem" onchange="filterByProfile(this.value)">
+      <option value="">All Profiles</option>
+      {{#each profiles}}
+      <option value="{{this.id}}" {{#if (eq this.id ../selectedProfile)}}selected{{/if}}>{{this.name}} ({{this.mode}})</option>
+      {{/each}}
+    </select>
+  </div>
+</div>
+
+<div class="uae-card">
+  {{#if contacts.length}}
+  <table class="uae-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Profile</th>
+        <th>Lead Status</th>
+        <th>Voter Intent</th>
+        <th>Donor Intent</th>
+        <th>Score</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each contacts}}
+      <tr>
+        <td>
+          <a href="/contacts/{{this.id}}" style="color:#fff;text-decoration:none;font-weight:600">
+            {{this.first_name}} {{this.last_name}}
+          </a>
+          {{#if this.company}}<div style="font-size:.7rem;color:var(--uae-text-muted)">{{this.company}}</div>{{/if}}
+        </td>
+        <td style="font-size:.8rem">{{this.email}}</td>
+        <td>
+          <span class="badge {{#if (eq this.profile_mode 'political')}}badge-political{{else}}badge-business{{/if}}" style="font-size:.65rem">
+            {{this.profile_name}}
+          </span>
+        </td>
+        <td>
+          {{#if (eq this.profile_mode 'business')}}<span class="badge {{badgeClass this.lead_status}}">{{this.lead_status}}</span>{{else}}<span style="color:var(--uae-text-muted)">—</span>{{/if}}
+        </td>
+        <td>
+          {{#if (eq this.profile_mode 'political')}}<span class="badge {{badgeClass this.voter_intent}}">{{this.voter_intent}}</span>{{else}}<span style="color:var(--uae-text-muted)">—</span>{{/if}}
+        </td>
+        <td>
+          {{#if (eq this.profile_mode 'political')}}<span class="badge {{badgeClass this.donor_intent}}">{{this.donor_intent}}</span>{{else}}<span style="color:var(--uae-text-muted)">—</span>{{/if}}
+        </td>
+        <td>
+          {{#if (eq this.profile_mode 'political')}}
+            <span style="color:{{sentimentColor this.support_level}};font-weight:700">{{this.support_level}}</span>
+          {{else}}
+            <span style="color:var(--uae-accent);font-weight:700">{{this.lead_score}}</span>
+          {{/if}}
+        </td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="text-center py-5">
+    <i class="bi bi-people" style="font-size:3rem;color:var(--uae-text-muted)"></i>
+    <h5 style="color:#fff;margin-top:1rem">No Contacts Yet</h5>
+    <p style="color:var(--uae-text-muted)">Contacts appear here as agents discover leads or constituents are imported.</p>
+  </div>
+  {{/if}}
+</div>
+
+<script>
+function filterByProfile(profileId) {
+  const url = new URL(window.location);
+  if (profileId) url.searchParams.set('profile', profileId);
+  else url.searchParams.delete('profile');
+  window.location = url;
+}
+</script>

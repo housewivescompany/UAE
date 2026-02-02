@@ -1,0 +1,59 @@
+<div class="page-header">
+  <h2><i class="bi bi-sliders2 me-2"></i>Profiles</h2>
+  <div>
+    <a href="/profiles/new?mode=business" class="btn btn-uae btn-sm me-2"><i class="bi bi-building me-1"></i>New Niche Profile</a>
+    <a href="/profiles/new?mode=political" class="btn btn-uae-purple btn-sm" style="color:#fff"><i class="bi bi-flag me-1"></i>New Riding Profile</a>
+  </div>
+</div>
+
+{{#if bizProfiles.length}}
+<div class="uae-card mb-4">
+  <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-building me-2" style="color:var(--uae-accent)"></i>Business Profiles</h6>
+  <table class="uae-table">
+    <thead><tr><th>Name</th><th>Industry</th><th>Target</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      {{#each bizProfiles}}
+      <tr>
+        <td><a href="/profiles/{{this.id}}/edit" style="color:var(--uae-accent);text-decoration:none;font-weight:600">{{this.name}}</a></td>
+        <td>{{truncate this.industry_context 50}}</td>
+        <td>{{truncate this.target_persona 40}}</td>
+        <td>{{#if this.is_active}}<span class="badge bg-success">Active</span>{{else}}<span class="badge bg-secondary">Inactive</span>{{/if}}</td>
+        <td><a href="/profiles/{{this.id}}/edit" class="btn btn-uae-outline btn-sm">Edit</a></td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</div>
+{{/if}}
+
+{{#if polProfiles.length}}
+<div class="uae-card mb-4">
+  <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-flag me-2" style="color:var(--uae-purple)"></i>Riding / Political Profiles</h6>
+  <table class="uae-table">
+    <thead><tr><th>Name</th><th>Riding</th><th>Candidate</th><th>Party</th><th></th></tr></thead>
+    <tbody>
+      {{#each polProfiles}}
+      <tr>
+        <td><a href="/profiles/{{this.id}}/edit" style="color:var(--uae-purple);text-decoration:none;font-weight:600">{{this.name}}</a></td>
+        <td>{{this.riding_name}} ({{this.riding_code}})</td>
+        <td>{{this.candidate_name}}</td>
+        <td>{{this.candidate_party}}</td>
+        <td><a href="/profiles/{{this.id}}/edit" class="btn btn-uae-outline btn-sm">Edit</a></td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+</div>
+{{/if}}
+
+{{#unless profiles.length}}
+<div class="uae-card text-center py-5">
+  <i class="bi bi-sliders2" style="font-size:3rem;color:var(--uae-text-muted)"></i>
+  <h5 style="color:#fff;margin-top:1rem">No Profiles Yet</h5>
+  <p style="color:var(--uae-text-muted)">Create a Niche Profile (business leads) or a Riding Profile (political engagement) to get started.</p>
+  <div class="mt-3">
+    <a href="/profiles/new?mode=business" class="btn btn-uae me-2">Create Niche Profile</a>
+    <a href="/profiles/new?mode=political" class="btn btn-uae-purple" style="color:#fff">Create Riding Profile</a>
+  </div>
+</div>
+{{/unless}}

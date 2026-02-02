@@ -1,0 +1,137 @@
+<div class="page-header">
+  <h2><i class="bi bi-grid-1x2 me-2"></i>Dashboard</h2>
+  <div class="mode-toggle">
+    <button class="mode-btn active" onclick="showAll()">All</button>
+    <button class="mode-btn" onclick="showBiz()">Business</button>
+    <button class="mode-btn political" onclick="showPol()">Political</button>
+  </div>
+</div>
+
+<!-- ── Stat Cards ──────────────────────────────────── -->
+<div class="stat-grid">
+  <div class="uae-card">
+    <div class="card-label">Active Profiles</div>
+    <div class="card-value">{{profileCount}}</div>
+    <div class="card-sub">{{bizProfiles.length}} business &middot; {{polProfiles.length}} political</div>
+  </div>
+  <div class="uae-card">
+    <div class="card-label">Total Contacts</div>
+    <div class="card-value">{{contactCount}}</div>
+    <div class="card-sub">Leads &amp; Constituents</div>
+  </div>
+  <div class="uae-card">
+    <div class="card-label">Agent Runs</div>
+    <div class="card-value">{{recentRuns.length}}</div>
+    <div class="card-sub">Recent activity</div>
+  </div>
+  <div class="uae-card">
+    <div class="card-label">Tenant Mode</div>
+    <div class="card-value" style="font-size:1.25rem">
+      {{#if (eq tenantMode 'agency')}}
+        <span class="badge badge-business"><i class="bi bi-building me-1"></i>My Agency</span>
+      {{else}}
+        <span class="badge badge-political"><i class="bi bi-person-badge me-1"></i>Client Managed</span>
+      {{/if}}
+    </div>
+    <div class="card-sub">{{tenant.name}}</div>
+  </div>
+</div>
+
+<!-- ── Profiles Overview ───────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="uae-card" style="height:100%">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 style="color:#fff;margin:0"><i class="bi bi-building me-2" style="color:var(--uae-accent)"></i>Business Profiles</h6>
+        <a href="/profiles/new?mode=business" class="btn btn-uae btn-sm">+ New</a>
+      </div>
+      {{#if bizProfiles.length}}
+      <table class="uae-table">
+        <thead><tr><th>Name</th><th>Industry</th><th>Status</th></tr></thead>
+        <tbody>
+          {{#each bizProfiles}}
+          <tr>
+            <td><a href="/profiles/{{this.id}}/edit" style="color:var(--uae-accent);text-decoration:none">{{this.name}}</a></td>
+            <td>{{truncate this.industry_context 40}}</td>
+            <td>{{#if this.is_active}}<span class="badge bg-success">Active</span>{{else}}<span class="badge bg-secondary">Inactive</span>{{/if}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <p style="color:var(--uae-text-muted);font-size:.85rem;margin:0">No business profiles yet. Create one to start generating leads.</p>
+      {{/if}}
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="uae-card" style="height:100%">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 style="color:#fff;margin:0"><i class="bi bi-flag me-2" style="color:var(--uae-purple)"></i>Riding Profiles</h6>
+        <a href="/profiles/new?mode=political" class="btn btn-uae-purple btn-sm" style="color:#fff">+ New</a>
+      </div>
+      {{#if polProfiles.length}}
+      <table class="uae-table">
+        <thead><tr><th>Name</th><th>Riding</th><th>Candidate</th></tr></thead>
+        <tbody>
+          {{#each polProfiles}}
+          <tr>
+            <td><a href="/profiles/{{this.id}}/edit" style="color:var(--uae-purple);text-decoration:none">{{this.name}}</a></td>
+            <td>{{this.riding_name}}</td>
+            <td>{{this.candidate_name}} ({{this.candidate_party}})</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+      {{else}}
+      <p style="color:var(--uae-text-muted);font-size:.85rem;margin:0">No riding profiles yet. Create one to start voter engagement.</p>
+      {{/if}}
+    </div>
+  </div>
+</div>
+
+<!-- ── Sentiment Summary (Political) ───────────────── -->
+{{#if sentimentSummary.length}}
+<div class="uae-card mb-4">
+  <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-graph-up me-2" style="color:var(--uae-purple)"></i>Sentiment Overview</h6>
+  <div class="row g-3">
+    {{#each sentimentSummary}}
+    <div class="col-md-4 col-lg-3">
+      <div style="background:var(--uae-dark);border-radius:8px;padding:0.75rem">
+        <div style="font-size:.75rem;color:var(--uae-text-muted);text-transform:uppercase;letter-spacing:1px">{{this.issue}}</div>
+        <div style="font-size:1.25rem;font-weight:700;color:{{sentimentColor this.avg_score}}">{{this.avg_score}}</div>
+        <div class="sentiment-bar mt-1">
+          <div class="fill" style="width:{{this.readings}}%;background:{{sentimentColor this.avg_score}};min-width:10%"></div>
+        </div>
+        <div style="font-size:.65rem;color:var(--uae-text-muted);margin-top:.25rem">{{this.readings}} readings</div>
+      </div>
+    </div>
+    {{/each}}
+  </div>
+</div>
+{{/if}}
+
+<!-- ── Recent Agent Runs ───────────────────────────── -->
+<div class="uae-card">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h6 style="color:#fff;margin:0"><i class="bi bi-robot me-2"></i>Recent Agent Runs</h6>
+    <a href="/agents" class="btn btn-uae-outline btn-sm">View All</a>
+  </div>
+  {{#if recentRuns.length}}
+  <table class="uae-table">
+    <thead><tr><th>Agent</th><th>Profile</th><th>Status</th><th>Date</th></tr></thead>
+    <tbody>
+      {{#each recentRuns}}
+      <tr>
+        <td><span class="badge {{badgeClass this.status}}">{{this.agent_type}}</span></td>
+        <td>{{this.profile_name}}</td>
+        <td><span class="badge {{badgeClass this.status}}">{{this.status}}</span></td>
+        <td style="color:var(--uae-text-muted)">{{formatDate this.created_at}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <p style="color:var(--uae-text-muted);font-size:.85rem;margin:0">No agent runs yet. Configure a profile and launch your first agent.</p>
+  {{/if}}
+</div>

@@ -1,0 +1,73 @@
+<div class="page-header">
+  <h2>{{contact.first_name}} {{contact.last_name}}</h2>
+  <a href="/contacts" class="btn btn-uae-outline btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="uae-card mb-4">
+      <h6 style="color:#fff"><i class="bi bi-person me-2"></i>Contact Info</h6>
+      <table style="width:100%;font-size:.85rem;color:var(--uae-text)">
+        <tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Email</td><td>{{contact.email}}</td></tr>
+        <tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Phone</td><td>{{contact.phone}}</td></tr>
+        {{#if contact.company}}<tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Company</td><td>{{contact.company}}</td></tr>{{/if}}
+        {{#if contact.job_title}}<tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Title</td><td>{{contact.job_title}}</td></tr>{{/if}}
+        {{#if contact.riding}}<tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Riding</td><td>{{contact.riding}}</td></tr>{{/if}}
+        <tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Source</td><td>{{contact.source}}</td></tr>
+        <tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Profile</td><td><span class="badge {{#if (eq contact.profile_mode 'political')}}badge-political{{else}}badge-business{{/if}}">{{contact.profile_name}}</span></td></tr>
+      </table>
+    </div>
+
+    <div class="uae-card">
+      <h6 style="color:#fff"><i class="bi bi-speedometer me-2"></i>Scores</h6>
+      {{#if (eq contact.profile_mode 'business')}}
+        <div class="mb-2"><span style="color:var(--uae-text-muted);font-size:.75rem">Lead Status</span><br><span class="badge {{badgeClass contact.lead_status}}">{{contact.lead_status}}</span></div>
+        <div><span style="color:var(--uae-text-muted);font-size:.75rem">Lead Score</span><br><span style="font-size:1.5rem;font-weight:700;color:var(--uae-accent)">{{contact.lead_score}}</span></div>
+      {{else}}
+        <div class="mb-2"><span style="color:var(--uae-text-muted);font-size:.75rem">Voter Intent</span><br><span class="badge {{badgeClass contact.voter_intent}}">{{contact.voter_intent}}</span></div>
+        <div class="mb-2"><span style="color:var(--uae-text-muted);font-size:.75rem">Donor Intent</span><br><span class="badge {{badgeClass contact.donor_intent}}">{{contact.donor_intent}}</span></div>
+        <div><span style="color:var(--uae-text-muted);font-size:.75rem">Support Level</span><br><span style="font-size:1.5rem;font-weight:700;color:{{sentimentColor contact.support_level}}">{{contact.support_level}}/100</span></div>
+      {{/if}}
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <!-- Messages -->
+    <div class="uae-card mb-4">
+      <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-chat-dots me-2"></i>Messages ({{messages.length}})</h6>
+      {{#each messages}}
+      <div style="border-left:3px solid {{#if (eq this.direction 'outbound')}}var(--uae-accent){{else}}var(--uae-green){{/if}};padding:.75rem;margin-bottom:.75rem;background:var(--uae-dark);border-radius:0 6px 6px 0">
+        <div class="d-flex justify-content-between" style="font-size:.7rem;color:var(--uae-text-muted);margin-bottom:.25rem">
+          <span>{{this.direction}} via {{this.channel}}</span>
+          <span>{{formatDate this.created_at}} &middot; <span class="badge {{badgeClass this.status}}" style="font-size:.6rem">{{this.status}}</span></span>
+        </div>
+        {{#if this.subject}}<div style="font-weight:600;color:#fff;font-size:.85rem">{{this.subject}}</div>{{/if}}
+        <div style="font-size:.85rem">{{this.body}}</div>
+      </div>
+      {{else}}
+      <p style="color:var(--uae-text-muted);font-size:.85rem;margin:0">No messages yet.</p>
+      {{/each}}
+    </div>
+
+    <!-- Sentiment History -->
+    {{#if sentiment.length}}
+    <div class="uae-card">
+      <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-graph-up me-2"></i>Sentiment History</h6>
+      <table class="uae-table">
+        <thead><tr><th>Issue</th><th>Score</th><th>Type</th><th>Signal</th><th>Date</th></tr></thead>
+        <tbody>
+          {{#each sentiment}}
+          <tr>
+            <td>{{this.issue}}</td>
+            <td><span style="color:{{sentimentColor this.sentiment_score}};font-weight:700">{{this.sentiment_score}}</span></td>
+            <td>{{this.intent_type}}</td>
+            <td style="font-size:.8rem">{{truncate this.raw_signal 60}}</td>
+            <td style="color:var(--uae-text-muted)">{{formatDate this.recorded_at}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+    {{/if}}
+  </div>
+</div>

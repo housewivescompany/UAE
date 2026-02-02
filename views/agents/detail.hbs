@@ -1,0 +1,38 @@
+<div class="page-header">
+  <h2><i class="bi bi-robot me-2"></i>Run Detail</h2>
+  <a href="/agents" class="btn btn-uae-outline btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="uae-card">
+      <h6 style="color:#fff;margin-bottom:1rem">Run Info</h6>
+      <table style="width:100%;font-size:.85rem;color:var(--uae-text)">
+        <tr><td style="color:var(--uae-text-muted);padding:.35rem 0">ID</td><td style="font-family:monospace;font-size:.75rem">{{run.id}}</td></tr>
+        <tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Agent</td><td><span class="badge {{badgeClass run.status}}">{{run.agent_type}}</span></td></tr>
+        <tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Profile</td><td>{{run.profile_name}}</td></tr>
+        <tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Status</td><td><span class="badge {{badgeClass run.status}}">{{run.status}}</span></td></tr>
+        <tr><td style="color:var(--uae-text-muted);padding:.35rem 0">LLM</td><td>{{run.llm_provider}}</td></tr>
+        <tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Tokens</td><td>{{run.tokens_used}}</td></tr>
+        <tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Started</td><td>{{run.started_at}}</td></tr>
+        <tr><td style="color:var(--uae-text-muted);padding:.35rem 0">Completed</td><td>{{run.completed_at}}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    {{#if run.input_data}}
+    <div class="uae-card mb-4">
+      <h6 style="color:#fff;margin-bottom:.75rem">Input</h6>
+      <pre style="background:var(--uae-dark);border:1px solid var(--uae-border);border-radius:6px;padding:.75rem;color:var(--uae-text);font-size:.8rem;overflow-x:auto;margin:0">{{run.input_data}}</pre>
+    </div>
+    {{/if}}
+
+    {{#if run.output_data}}
+    <div class="uae-card">
+      <h6 style="color:#fff;margin-bottom:.75rem">Output</h6>
+      <pre style="background:var(--uae-dark);border:1px solid var(--uae-border);border-radius:6px;padding:.75rem;color:var(--uae-text);font-size:.8rem;overflow-x:auto;margin:0;white-space:pre-wrap">{{run.output_data}}</pre>
+    </div>
+    {{/if}}
+  </div>
+</div>

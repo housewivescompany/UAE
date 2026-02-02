@@ -1,0 +1,113 @@
+<div class="page-header">
+  <h2><i class="bi bi-graph-up me-2" style="color:var(--uae-purple)"></i>Sentiment Tracking</h2>
+  <div class="d-flex gap-2">
+    <select class="form-select form-select-sm" style="width:auto;background:var(--uae-dark);border-color:var(--uae-border);color:var(--uae-text);font-size:.8rem" onchange="filterProfile(this.value)">
+      <option value="">All Riding Profiles</option>
+      {{#each polProfiles}}
+      <option value="{{this.id}}" {{#if (eq this.id ../selectedProfile)}}selected{{/if}}>{{this.name}}</option>
+      {{/each}}
+    </select>
+  </div>
+</div>
+
+<!-- ── Voter vs Donor Intent Summary ───────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="uae-card" style="height:100%">
+      <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-person-check me-2" style="color:var(--uae-green)"></i>Voter Intent Distribution</h6>
+      {{#if intentSummary.length}}
+      <div class="row g-2">
+        {{#each intentSummary}}
+        <div class="col-6">
+          <div style="background:var(--uae-dark);border-radius:6px;padding:.6rem .75rem">
+            <div style="font-size:.7rem;color:var(--uae-text-muted);text-transform:uppercase;letter-spacing:.5px">
+              <span class="badge {{badgeClass this.voter_intent}}" style="font-size:.6rem">{{this.voter_intent}}</span>
+              / <span class="badge {{badgeClass this.donor_intent}}" style="font-size:.6rem">{{this.donor_intent}}</span>
+            </div>
+            <div style="font-size:1.25rem;font-weight:700;color:#fff;margin-top:.25rem">{{this.cnt}}</div>
+          </div>
+        </div>
+        {{/each}}
+      </div>
+      {{else}}
+      <p style="color:var(--uae-text-muted);font-size:.85rem;margin:0">No political contacts yet. Import constituents or run the Issue Scout agent.</p>
+      {{/if}}
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="uae-card" style="height:100%">
+      <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-bar-chart me-2" style="color:var(--uae-purple)"></i>Issue Sentiment Breakdown</h6>
+      {{#if issueBreakdown.length}}
+      {{#each issueBreakdown}}
+      <div class="d-flex align-items-center gap-3 mb-2" style="font-size:.85rem">
+        <div style="min-width:140px;font-weight:600;color:var(--uae-text)">{{this.issue}}</div>
+        <div class="sentiment-bar flex-grow-1">
+          <div class="fill" style="width:{{this.readings}}%;background:{{sentimentColor this.avg_score}};min-width:8%"></div>
+        </div>
+        <div style="min-width:40px;text-align:right;font-weight:700;color:{{sentimentColor this.avg_score}}">{{this.avg_score}}</div>
+        <div style="min-width:30px;font-size:.7rem;color:var(--uae-text-muted)">{{this.readings}}</div>
+        <span class="badge {{badgeClass this.intent_type}}" style="font-size:.6rem">{{this.intent_type}}</span>
+      </div>
+      {{/each}}
+      {{else}}
+      <p style="color:var(--uae-text-muted);font-size:.85rem;margin:0">No sentiment data yet. Run agents to start collecting readings.</p>
+      {{/if}}
+    </div>
+  </div>
+</div>
+
+<!-- ── Sentiment Timeline ──────────────────────────── -->
+<div class="uae-card mb-4">
+  <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-clock-history me-2"></i>Sentiment Timeline</h6>
+  {{#if timeline.length}}
+  <table class="uae-table">
+    <thead><tr><th>Date</th><th>Issue</th><th>Score</th><th>Type</th><th>Contact</th><th>Signal</th></tr></thead>
+    <tbody>
+      {{#each timeline}}
+      <tr>
+        <td style="color:var(--uae-text-muted);font-size:.8rem;white-space:nowrap">{{formatDate this.recorded_at}}</td>
+        <td style="font-weight:600">{{this.issue}}</td>
+        <td>
+          <span style="display:inline-block;width:36px;height:24px;line-height:24px;text-align:center;border-radius:4px;font-size:.75rem;font-weight:700;color:#fff;background:{{sentimentColor this.sentiment_score}}">
+            {{this.sentiment_score}}
+          </span>
+        </td>
+        <td><span class="badge {{badgeClass this.intent_type}}" style="font-size:.6rem">{{this.intent_type}}</span></td>
+        <td>{{this.first_name}} {{this.last_name}}</td>
+        <td style="font-size:.8rem;color:var(--uae-text-muted)">{{truncate this.raw_signal 60}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="text-center py-4">
+    <i class="bi bi-graph-up" style="font-size:2.5rem;color:var(--uae-text-muted)"></i>
+    <p style="color:var(--uae-text-muted);margin-top:.75rem">Sentiment data will appear here as agents interact with constituents.</p>
+  </div>
+  {{/if}}
+</div>
+
+<!-- ── Data Moat Insight ───────────────────────────── -->
+<div class="uae-card" style="border-left:3px solid var(--uae-purple)">
+  <div class="d-flex align-items-start gap-3">
+    <div style="font-size:1.5rem;color:var(--uae-purple)"><i class="bi bi-shield-lock"></i></div>
+    <div>
+      <h6 style="color:#fff;margin-bottom:.25rem">Proprietary Sentiment Map</h6>
+      <p style="color:var(--uae-text-muted);font-size:.85rem;margin:0">
+        Every agent interaction builds your data moat. Over time, this dashboard reveals patterns like:
+        "Voters in {{#if polProfiles.length}}{{polProfiles.[0].name}}{{else}}[Riding X]{{/if}} who care about [Issue A] are N% more likely to donate if contacted via text on a Thursday."
+        This intelligence compounds with every election cycle.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+function filterProfile(id) {
+  const url = new URL(window.location);
+  if (id) url.searchParams.set('profile', id);
+  else url.searchParams.delete('profile');
+  window.location = url;
+}
+</script>

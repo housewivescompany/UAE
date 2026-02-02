@@ -1,0 +1,107 @@
+<div class="page-header">
+  <h2><i class="bi bi-robot me-2"></i>Agents</h2>
+  <button class="btn btn-uae btn-sm" data-bs-toggle="modal" data-bs-target="#runModal"><i class="bi bi-play-fill me-1"></i>Run Agent</button>
+</div>
+
+<!-- ── Agent Type Cards ────────────────────────────── -->
+<div class="stat-grid mb-4">
+  <div class="uae-card" style="border-left:3px solid var(--uae-accent)">
+    <div class="card-label"><i class="bi bi-search me-1"></i>Researcher</div>
+    <div class="card-sub">Scrapes &amp; synthesizes lead data for personalization hooks</div>
+  </div>
+  <div class="uae-card" style="border-left:3px solid var(--uae-green)">
+    <div class="card-label"><i class="bi bi-send me-1"></i>Outreach</div>
+    <div class="card-sub">Crafts human-sounding custom messages using the Niche Profile</div>
+  </div>
+  <div class="uae-card" style="border-left:3px solid var(--uae-orange)">
+    <div class="card-label"><i class="bi bi-headset me-1"></i>Secretary</div>
+    <div class="card-sub">Handles replies, answers questions, books appointments</div>
+  </div>
+  <div class="uae-card" style="border-left:3px solid var(--uae-purple)">
+    <div class="card-label"><i class="bi bi-binoculars me-1"></i>Issue Scout</div>
+    <div class="card-sub">Monitors local sources to identify hot issues in a riding</div>
+  </div>
+  <div class="uae-card" style="border-left:3px solid var(--uae-red)">
+    <div class="card-label"><i class="bi bi-megaphone me-1"></i>Persuader</div>
+    <div class="card-sub">Political outreach — leads with constituent concerns</div>
+  </div>
+  <div class="uae-card" style="border-left:3px solid var(--uae-green)">
+    <div class="card-label"><i class="bi bi-currency-dollar me-1"></i>Donor Closer</div>
+    <div class="card-sub">Converts warm constituents into donors or volunteers</div>
+  </div>
+</div>
+
+<!-- ── Run History ─────────────────────────────────── -->
+<div class="uae-card">
+  <h6 style="color:#fff;margin-bottom:1rem">Run History</h6>
+  {{#if runs.length}}
+  <table class="uae-table">
+    <thead><tr><th>Agent</th><th>Profile</th><th>Contact</th><th>Status</th><th>Tokens</th><th>Date</th><th></th></tr></thead>
+    <tbody>
+      {{#each runs}}
+      <tr>
+        <td><span class="badge {{badgeClass this.status}}" style="font-size:.7rem">{{this.agent_type}}</span></td>
+        <td>{{this.profile_name}}</td>
+        <td>{{#if this.first_name}}{{this.first_name}} {{this.last_name}}{{else}}<span style="color:var(--uae-text-muted)">—</span>{{/if}}</td>
+        <td><span class="badge {{badgeClass this.status}}">{{this.status}}</span></td>
+        <td style="color:var(--uae-text-muted)">{{this.tokens_used}}</td>
+        <td style="color:var(--uae-text-muted)">{{formatDate this.created_at}}</td>
+        <td><a href="/agents/runs/{{this.id}}" class="btn btn-uae-outline btn-sm" style="font-size:.7rem">View</a></td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+  {{else}}
+  <div class="text-center py-4">
+    <i class="bi bi-robot" style="font-size:2.5rem;color:var(--uae-text-muted)"></i>
+    <p style="color:var(--uae-text-muted);margin-top:.75rem">No agent runs yet. Select a profile and launch your first agent.</p>
+  </div>
+  {{/if}}
+</div>
+
+<!-- ── Run Agent Modal ─────────────────────────────── -->
+<div class="modal fade" id="runModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:var(--uae-surface);border-color:var(--uae-border)">
+      <div class="modal-header" style="border-color:var(--uae-border)">
+        <h5 class="modal-title" style="color:#fff"><i class="bi bi-play-fill me-2"></i>Run Agent</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="POST" action="/agents/run">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label" style="color:var(--uae-text-muted);font-size:.8rem">Profile</label>
+            <select name="profile_id" class="form-select" style="background:var(--uae-dark);border-color:var(--uae-border);color:var(--uae-text)" required>
+              {{#each profiles}}
+              <option value="{{this.id}}">{{this.name}} ({{this.mode}})</option>
+              {{/each}}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" style="color:var(--uae-text-muted);font-size:.8rem">Agent Type</label>
+            <select name="agent_type" class="form-select" style="background:var(--uae-dark);border-color:var(--uae-border);color:var(--uae-text)" required>
+              <optgroup label="Business Agents">
+                <option value="researcher">Researcher</option>
+                <option value="outreach">Outreach</option>
+                <option value="secretary">Secretary</option>
+              </optgroup>
+              <optgroup label="Political Agents">
+                <option value="issue_scout">Issue Scout</option>
+                <option value="persuader">Persuader</option>
+                <option value="donor_closer">Donor Closer</option>
+              </optgroup>
+            </select>
+          </div>
+          <div>
+            <label class="form-label" style="color:var(--uae-text-muted);font-size:.8rem">Input Data (JSON)</label>
+            <textarea name="input_data" class="form-control" rows="4" style="background:var(--uae-dark);border-color:var(--uae-border);color:var(--uae-text);font-family:monospace;font-size:.8rem" placeholder='{"target_url": "https://example.com"}'>{}</textarea>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-color:var(--uae-border)">
+          <button type="button" class="btn btn-uae-outline btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-uae btn-sm"><i class="bi bi-play-fill me-1"></i>Launch</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

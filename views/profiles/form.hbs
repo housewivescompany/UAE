@@ -1,0 +1,314 @@
+<div class="page-header">
+  <h2>
+    {{#if isNew}}
+      {{#if (eq profile.mode 'political')}}<i class="bi bi-flag me-2" style="color:var(--uae-purple)"></i>New Riding Profile{{else}}<i class="bi bi-building me-2" style="color:var(--uae-accent)"></i>New Niche Profile{{/if}}
+    {{else}}
+      {{#if (eq profile.mode 'political')}}<i class="bi bi-flag me-2" style="color:var(--uae-purple)"></i>{{else}}<i class="bi bi-building me-2" style="color:var(--uae-accent)"></i>{{/if}}{{profile.name}}
+    {{/if}}
+  </h2>
+  <div>
+    <a href="/profiles" class="btn btn-uae-outline btn-sm"><i class="bi bi-arrow-left me-1"></i>Back</a>
+  </div>
+</div>
+
+<form method="POST" action="/profiles">
+  {{#unless isNew}}<input type="hidden" name="id" value="{{profile.id}}">{{/unless}}
+
+  <div class="row g-4">
+    <!-- ── Left Column: Core Config ──────────────── -->
+    <div class="col-lg-8">
+      <!-- General -->
+      <div class="uae-card mb-4">
+        <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-gear me-2"></i>General Configuration</h6>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label">Profile Name</label>
+            <input type="text" name="name" class="form-control" value="{{profile.name}}" placeholder="e.g. Premium Plumbing Leads" required>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Mode</label>
+            <select name="mode" class="form-select" id="modeSelect" onchange="toggleMode(this.value)">
+              <option value="business" {{#if (eq profile.mode 'business')}}selected{{/if}}>Business</option>
+              <option value="political" {{#if (eq profile.mode 'political')}}selected{{/if}}>Political</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Status</label>
+            <div class="form-check form-switch mt-2">
+              <input class="form-check-input" type="checkbox" name="is_active" value="1" {{#if isNew}}checked{{else}}{{#if profile.is_active}}checked{{/if}}{{/if}}>
+              <label class="form-check-label" style="font-size:.85rem;color:var(--uae-text)">Active</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shared: Context & Persona -->
+      <div class="uae-card mb-4">
+        <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-person-lines-fill me-2"></i>Context & Persona</h6>
+        <div class="mb-3">
+          <label class="form-label">Industry Context <span class="text-muted" style="font-size:.7rem">(Who & what — the business/campaign description)</span></label>
+          <textarea name="industry_context" class="form-control" rows="3" placeholder="Describe the business, campaign, or organization...">{{profile.industry_context}}</textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Target Persona <span class="text-muted" style="font-size:.7rem">(Ideal customer / voter / donor demographic)</span></label>
+          <textarea name="target_persona" class="form-control" rows="3" placeholder="Describe the ideal target: age, location, income, concerns, behaviors...">{{profile.target_persona}}</textarea>
+        </div>
+        <div>
+          <label class="form-label">Knowledge Base <span class="text-muted" style="font-size:.7rem">(One URL or fact per line — agents use this to answer questions)</span></label>
+          <textarea name="knowledge_base" class="form-control" rows="4" placeholder="https://example.com/faq&#10;Our service includes 24/7 emergency response...&#10;Pricing starts at $99/visit">{{profile.knowledge_base}}</textarea>
+        </div>
+      </div>
+
+      <!-- Business-only fields -->
+      <div class="uae-card mb-4" id="businessFields" style="{{#if (eq profile.mode 'political')}}display:none{{/if}}">
+        <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-building me-2" style="color:var(--uae-accent)"></i>Business Configuration</h6>
+        <div class="mb-3">
+          <label class="form-label">Service Offerings <span class="text-muted" style="font-size:.7rem">(One per line)</span></label>
+          <textarea name="service_offerings" class="form-control" rows="3" placeholder="Emergency Repairs&#10;Bathroom Renovation&#10;Water Heater Install">{{profile.service_offerings}}</textarea>
+        </div>
+        <div>
+          <label class="form-label">Common Price Objections <span class="text-muted" style="font-size:.7rem">(One per line — agents use these to handle pushback)</span></label>
+          <textarea name="price_objections" class="form-control" rows="3" placeholder="Too expensive&#10;I can DIY&#10;Already have a provider">{{profile.price_objections}}</textarea>
+        </div>
+      </div>
+
+      <!-- Political-only fields -->
+      <div class="uae-card mb-4" id="politicalFields" style="{{#unless (eq profile.mode 'political')}}display:none{{/unless}}">
+        <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-flag me-2" style="color:var(--uae-purple)"></i>Riding & Political Configuration</h6>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label">Riding Name</label>
+            <input type="text" name="riding_name" class="form-control" value="{{profile.riding_name}}" placeholder="e.g. Ottawa Centre">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Riding Code</label>
+            <input type="text" name="riding_code" class="form-control" value="{{profile.riding_code}}" placeholder="e.g. 35075">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Geographic Focus</label>
+            <input type="text" name="geographic_focus" class="form-control" value="{{profile.geographic_focus}}" placeholder='{"province":"ON","city":"Ottawa"}'>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Candidate Name</label>
+            <input type="text" name="candidate_name" class="form-control" value="{{profile.candidate_name}}" placeholder="Mark Carney">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Candidate Party</label>
+            <input type="text" name="candidate_party" class="form-control" value="{{profile.candidate_party}}" placeholder="Liberal">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Voting Record URL</label>
+            <input type="url" name="voting_record_url" class="form-control" value="{{profile.voting_record_url}}" placeholder="https://www.ourcommons.ca/members/...">
+          </div>
+        </div>
+
+        <hr style="border-color:var(--uae-border);margin:1.25rem 0">
+
+        <div class="mb-3">
+          <label class="form-label">Policy Pillars <span class="text-muted" style="font-size:.7rem">(Core hooks for persuasion — one per line)</span></label>
+          <textarea name="policy_pillars" class="form-control" rows="3" placeholder="Housing Affordability&#10;Climate Action&#10;Healthcare Wait Times&#10;Cost of Living">{{profile.policy_pillars}}</textarea>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Policy Objections <span class="text-muted" style="font-size:.7rem">(Common voter pushback — one per line)</span></label>
+          <textarea name="policy_objections" class="form-control" rows="3" placeholder="Carbon tax increases grocery bills&#10;Housing plan is too slow&#10;Healthcare is provincial not federal">{{profile.policy_objections}}</textarea>
+        </div>
+        <div>
+          <label class="form-label">Exhaustion Gap / Tone Notes <span class="text-muted" style="font-size:.7rem">(Current political climate guidance for agents)</span></label>
+          <textarea name="exhaustion_gap" class="form-control" rows="3" placeholder="Voter fatigue is high. Messaging must acknowledge frustration while pivoting to fresh leadership narrative...">{{profile.exhaustion_gap}}</textarea>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-uae"><i class="bi bi-check2 me-2"></i>{{#if isNew}}Create Profile{{else}}Save Changes{{/if}}</button>
+      {{#unless isNew}}
+      <button type="button" class="btn btn-outline-danger btn-sm ms-3" onclick="if(confirm('Delete this profile and all its data?'))document.getElementById('deleteForm').submit()">
+        <i class="bi bi-trash me-1"></i>Delete
+      </button>
+      {{/unless}}
+    </div>
+
+    <!-- ── Right Column: Integrations ────────────── -->
+    <div class="col-lg-4">
+      {{#unless isNew}}
+      <div class="uae-card mb-4">
+        <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-plug me-2"></i>Integrations</h6>
+
+        {{#each integrations}}
+        <div class="integration-card">
+          <div class="d-flex justify-content-between align-items-center">
+            <div class="provider-name">{{capitalize this.provider}}</div>
+            <div>
+              {{#if this.is_verified}}<span class="verified"><i class="bi bi-check-circle-fill"></i> Verified</span>
+              {{else}}<span class="unverified"><i class="bi bi-dash-circle"></i> Unverified</span>{{/if}}
+            </div>
+          </div>
+          <div style="font-size:.75rem;color:var(--uae-text-muted)" class="mb-2">
+            {{#if this.last_tested_at}}Last tested: {{formatDate this.last_tested_at}}{{else}}Never tested{{/if}}
+          </div>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-uae-green btn-sm" style="color:#fff;font-size:.75rem" onclick="testConnection('{{this.id}}', this)">
+              <i class="bi bi-lightning me-1"></i>Test Connection
+            </button>
+            <button type="button" class="btn btn-outline-danger btn-sm" style="font-size:.75rem" onclick="if(confirm('Remove this integration?'))document.getElementById('deleteInt-{{this.id}}').submit()">
+              <i class="bi bi-x"></i>
+            </button>
+          </div>
+        </div>
+        <form id="deleteInt-{{this.id}}" method="POST" action="/integrations/{{this.id}}/delete" style="display:none"></form>
+        {{/each}}
+
+        <hr style="border-color:var(--uae-border)">
+
+        <h6 style="color:var(--uae-text-muted);font-size:.75rem;margin-bottom:.75rem">Add Integration</h6>
+      </div>
+
+      <!-- Add integration forms -->
+      <div class="uae-card mb-3">
+        <div class="accordion" id="intAccordion">
+          <!-- Constant Contact -->
+          <div class="accordion-item" style="background:transparent;border-color:var(--uae-border)">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#ccPanel" style="background:var(--uae-dark);color:var(--uae-text);font-size:.85rem;padding:.6rem .85rem">
+                <i class="bi bi-envelope me-2"></i>Constant Contact
+              </button>
+            </h2>
+            <div id="ccPanel" class="accordion-collapse collapse" data-bs-parent="#intAccordion">
+              <div class="accordion-body" style="padding:.85rem">
+                <div class="mb-2"><input type="text" class="form-control form-control-sm" placeholder="API Key" id="cc_key"></div>
+                <div class="mb-2"><input type="text" class="form-control form-control-sm" placeholder="Access Token" id="cc_token"></div>
+                <button type="button" class="btn btn-uae btn-sm w-100" onclick="saveIntegration('constant_contact')">Save</button>
+              </div>
+            </div>
+          </div>
+          <!-- Beehiiv -->
+          <div class="accordion-item" style="background:transparent;border-color:var(--uae-border)">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#bhPanel" style="background:var(--uae-dark);color:var(--uae-text);font-size:.85rem;padding:.6rem .85rem">
+                <i class="bi bi-newspaper me-2"></i>Beehiiv
+              </button>
+            </h2>
+            <div id="bhPanel" class="accordion-collapse collapse" data-bs-parent="#intAccordion">
+              <div class="accordion-body" style="padding:.85rem">
+                <div class="mb-2"><input type="text" class="form-control form-control-sm" placeholder="API Key" id="bh_key"></div>
+                <div class="mb-2"><input type="text" class="form-control form-control-sm" placeholder="Publication ID" id="bh_pub"></div>
+                <button type="button" class="btn btn-uae btn-sm w-100" onclick="saveIntegration('beehiiv')">Save</button>
+              </div>
+            </div>
+          </div>
+          <!-- NationBuilder -->
+          <div class="accordion-item" style="background:transparent;border-color:var(--uae-border)">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#nbPanel" style="background:var(--uae-dark);color:var(--uae-text);font-size:.85rem;padding:.6rem .85rem">
+                <i class="bi bi-flag me-2"></i>NationBuilder
+              </button>
+            </h2>
+            <div id="nbPanel" class="accordion-collapse collapse" data-bs-parent="#intAccordion">
+              <div class="accordion-body" style="padding:.85rem">
+                <div class="mb-2"><input type="text" class="form-control form-control-sm" placeholder="Nation Slug" id="nb_slug"></div>
+                <div class="mb-2"><input type="text" class="form-control form-control-sm" placeholder="API Token" id="nb_token"></div>
+                <button type="button" class="btn btn-uae-purple btn-sm w-100" style="color:#fff" onclick="saveIntegration('nationbuilder')">Save</button>
+              </div>
+            </div>
+          </div>
+          <!-- WordPress Webhook -->
+          <div class="accordion-item" style="background:transparent;border-color:var(--uae-border)">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#wpPanel" style="background:var(--uae-dark);color:var(--uae-text);font-size:.85rem;padding:.6rem .85rem">
+                <i class="bi bi-wordpress me-2"></i>WordPress Webhook
+              </button>
+            </h2>
+            <div id="wpPanel" class="accordion-collapse collapse" data-bs-parent="#intAccordion">
+              <div class="accordion-body" style="padding:.85rem">
+                <div class="mb-2"><input type="url" class="form-control form-control-sm" placeholder="Webhook URL" id="wp_url"></div>
+                <button type="button" class="btn btn-uae btn-sm w-100" onclick="saveIntegration('wordpress')">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {{/unless}}
+
+      {{#if isNew}}
+      <div class="uae-card">
+        <div style="text-align:center;padding:1rem;color:var(--uae-text-muted)">
+          <i class="bi bi-plug" style="font-size:2rem"></i>
+          <p style="font-size:.85rem;margin-top:.5rem">Save the profile first, then add integrations.</p>
+        </div>
+      </div>
+      {{/if}}
+    </div>
+  </div>
+</form>
+
+{{#unless isNew}}
+<form id="deleteForm" method="POST" action="/profiles/{{profile.id}}/delete" style="display:none"></form>
+{{/unless}}
+
+<script>
+function toggleMode(mode) {
+  document.getElementById('businessFields').style.display = mode === 'business' ? '' : 'none';
+  document.getElementById('politicalFields').style.display = mode === 'political' ? '' : 'none';
+}
+
+function testConnection(integrationId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Testing...';
+  fetch(`/integrations/${integrationId}/test`, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      btn.disabled = false;
+      if (data.success) {
+        btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Connected!';
+        btn.classList.remove('btn-uae-green');
+        btn.classList.add('btn-success');
+      } else {
+        btn.innerHTML = '<i class="bi bi-x-circle me-1"></i>Failed';
+        btn.classList.remove('btn-uae-green');
+        btn.classList.add('btn-danger');
+        alert('Connection failed: ' + data.message);
+      }
+      setTimeout(() => {
+        btn.innerHTML = '<i class="bi bi-lightning me-1"></i>Test Connection';
+        btn.className = 'btn btn-uae-green btn-sm';
+        btn.style.color = '#fff';
+        btn.style.fontSize = '.75rem';
+      }, 3000);
+    })
+    .catch(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-lightning me-1"></i>Test Connection';
+    });
+}
+
+function saveIntegration(provider) {
+  const profileId = '{{profile.id}}';
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/integrations';
+
+  const fields = { profile_id: profileId, provider };
+
+  if (provider === 'constant_contact') {
+    fields.api_key = document.getElementById('cc_key').value;
+    fields.access_token = document.getElementById('cc_token').value;
+  } else if (provider === 'beehiiv') {
+    fields.api_key = document.getElementById('bh_key').value;
+    fields.extra_config = JSON.stringify({ publication_id: document.getElementById('bh_pub').value });
+  } else if (provider === 'nationbuilder') {
+    fields.access_token = document.getElementById('nb_token').value;
+    fields.extra_config = JSON.stringify({ slug: document.getElementById('nb_slug').value });
+  } else if (provider === 'wordpress') {
+    fields.endpoint_url = document.getElementById('wp_url').value;
+  }
+
+  for (const [k, v] of Object.entries(fields)) {
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = k;
+    input.value = v;
+    form.appendChild(input);
+  }
+
+  document.body.appendChild(form);
+  form.submit();
+}
+</script>

@@ -1,0 +1,46 @@
+<nav class="uae-sidebar" id="sidebar">
+  <div class="brand">
+    <h5>UAE</h5>
+    <small>Universal Agentic Engine</small>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Overview</div>
+    <a href="/dashboard" class="nav-link"><i class="bi bi-grid-1x2"></i> Dashboard</a>
+
+    <div class="nav-label">Configuration</div>
+    <a href="/profiles" class="nav-link"><i class="bi bi-sliders2"></i> Profiles</a>
+    <a href="/profiles/new?mode=business" class="nav-link"><i class="bi bi-building"></i> New Niche Profile</a>
+    <a href="/profiles/new?mode=political" class="nav-link"><i class="bi bi-flag"></i> New Riding Profile</a>
+
+    <div class="nav-label">Pipeline</div>
+    <a href="/contacts" class="nav-link"><i class="bi bi-people"></i> Contacts</a>
+    <a href="/agents" class="nav-link"><i class="bi bi-robot"></i> Agents</a>
+    <a href="/sentiment" class="nav-link"><i class="bi bi-graph-up"></i> Sentiment</a>
+
+    <div class="nav-label">Account</div>
+    {{#if tenant}}
+    <div class="nav-link" style="cursor:default;opacity:.7">
+      <i class="bi bi-shield-check"></i>
+      {{#if (eq tenant.mode 'agency')}}
+        <span class="badge badge-business" style="font-size:.65rem">Agency Mode</span>
+      {{else}}
+        <span class="badge badge-political" style="font-size:.65rem">Client Mode</span>
+      {{/if}}
+    </div>
+    {{/if}}
+    <a href="/logout" class="nav-link"><i class="bi bi-box-arrow-left"></i> Sign Out</a>
+  </div>
+
+  <div class="sidebar-footer">
+    {{#if user}}
+      <div style="color:#fff;font-weight:600">{{user.display_name}}</div>
+      <div>{{tenant.name}}</div>
+    {{/if}}
+  </div>
+</nav>
+
+<!-- Mobile toggle -->
+<button class="btn btn-sm d-lg-none position-fixed" style="top:1rem;left:1rem;z-index:1100;background:var(--uae-accent);color:#fff;border:none;border-radius:6px;padding:0.4rem 0.6rem" onclick="document.getElementById('sidebar').classList.toggle('show')">
+  <i class="bi bi-list"></i>
+</button>
