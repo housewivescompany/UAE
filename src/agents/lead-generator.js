@@ -306,7 +306,14 @@ class LeadGeneratorAgent extends BaseAgent {
 
       systemPrompt = `You are a lead extraction analyst. You will receive REAL scraped web content from social media, forums, and review sites.
 
-Your job is to find REAL people in this content who could be leads. ${profileContext}
+Your job is to find REAL people in this content who are POTENTIAL CUSTOMERS — people who NEED or are LOOKING FOR services. ${profileContext}
+
+CRITICAL — WHAT IS A LEAD vs WHAT IS NOT:
+${isPolitical
+  ? `A LEAD IS: a real person expressing opinions about policy, concerned about local issues, asking questions about candidates, discussing voting — someone the campaign can engage.
+NOT A LEAD: political organizations, news outlets, campaign ads, party officials, other candidates, journalists reporting.`
+  : `A LEAD IS: a real person who NEEDS a service — asking for help, complaining about a problem, requesting recommendations, describing an emergency, looking for quotes.
+NOT A LEAD: businesses ADVERTISING or PROVIDING services (competitors), company profiles, business listings, service providers promoting themselves, reviews BY businesses, "Call us at..." posts. If someone says "We are a plumbing company" or "Our team provides..." — that is a COMPETITOR, not a lead. SKIP IT.`}
 
 STRICT RULES — FOLLOW EXACTLY:
 1. Only extract people who ACTUALLY APPEAR in the scraped content. Every lead must come from the text provided.
@@ -314,9 +321,10 @@ STRICT RULES — FOLLOW EXACTLY:
 3. Extract the EXACT username/handle as it appears (e.g. "u/leaky_pipe_guy", "@jane_smith", the actual poster name)
 4. The profile_url should be the ACTUAL source URL from the [Source URL: ...] tag where you found this person, or null if unclear
 5. The social_handle must be the person's REAL username from the content, not an invented one
-6. email and phone should be null unless they literally appear in the scraped text (they almost never will on social media — that's fine)
+6. email and phone should ONLY be included if they literally appear in the scraped text next to the person's post. A phone number in a business advertisement is NOT lead contact info — it belongs to a competitor.
 7. RECENCY: Skip posts that appear to be older than ~3 months. Look for date indicators in the content. Prioritize recent posts.
 8. The "hook" must be a REAL quote or close paraphrase of what the person actually said in the content
+9. FILTER OUT businesses, service providers, advertisers, and competitors. Only include people who are SEEKING help, not offering it.
 
 For EACH lead return:
 - first_name: real name if visible, otherwise use their username (e.g. "u/leaky_pipe_guy")
