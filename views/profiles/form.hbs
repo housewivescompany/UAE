@@ -578,13 +578,36 @@ function scoreColor(score) {
 }
 
 function formatLeadOutput(out) {
-  const modeLabel = out.mode === 'ai_prospecting' ? 'AI Prospecting' : 'Web Scrape';
   let html = '<div style="margin-bottom:.75rem">'
     + '<strong style="color:var(--uae-green);font-size:.95rem">' + out.leads_found + ' lead' + (out.leads_found !== 1 ? 's' : '') + ' found</strong>'
     + '<div style="color:var(--uae-text-muted);font-size:.7rem;margin-top:.2rem">'
-    + '<i class="bi bi-gear me-1"></i>' + modeLabel + ' &middot; ' + out.sources_scanned + ' sources scanned'
-    + (out.sources_successful > 0 ? ' &middot; ' + out.sources_successful + ' successful' : '')
+    + '<i class="bi bi-gear me-1"></i>' + out.sources_scanned + ' sources queried'
+    + (out.sources_successful > 0 ? ' &middot; ' + out.sources_successful + ' returned data' : '')
     + '</div></div>';
+
+  // Mode banner
+  if (out.mode === 'ai_prospecting') {
+    html += '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:6px;padding:.5rem .65rem;margin-bottom:.6rem;font-size:.72rem;color:#f59e0b">'
+      + '<i class="bi bi-robot me-1"></i><strong>AI-Generated Leads</strong> — Scraping returned no data. '
+      + 'These leads are simulated by AI based on your profile. '
+      + 'Contact info is fictional. Check your Firecrawl API key and plan.'
+      + '</div>';
+  } else {
+    html += '<div style="background:rgba(25,135,84,.1);border:1px solid rgba(25,135,84,.3);border-radius:6px;padding:.5rem .65rem;margin-bottom:.6rem;font-size:.72rem;color:var(--uae-green)">'
+      + '<i class="bi bi-globe me-1"></i><strong>Real Leads</strong> — Extracted from live web data via Firecrawl.'
+      + '</div>';
+  }
+
+  // Scrape errors (if any)
+  if (out.scrape_errors && out.scrape_errors.length > 0) {
+    html += '<details style="margin-bottom:.6rem;font-size:.68rem;color:var(--uae-text-muted)">'
+      + '<summary style="cursor:pointer;color:#f59e0b"><i class="bi bi-exclamation-triangle me-1"></i>' + out.scrape_errors.length + ' source error(s)</summary>'
+      + '<div style="margin-top:.3rem;padding:.4rem;background:rgba(0,0,0,.2);border-radius:4px;white-space:pre-wrap">';
+    for (var i = 0; i < out.scrape_errors.length; i++) {
+      html += escHtml(out.scrape_errors[i]) + '\n';
+    }
+    html += '</div></details>';
+  }
 
   for (const lead of out.leads) {
     const name = escHtml((lead.name || 'Unknown').trim());

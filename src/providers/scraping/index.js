@@ -39,11 +39,16 @@ class FirecrawlProvider extends BaseScraper {
       body: JSON.stringify({ url, formats: ['markdown'] }),
     });
 
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Firecrawl scrape HTTP ${response.status}: ${text.substring(0, 200)}`);
+    }
+
     const data = await response.json();
     if (!data.success) throw new Error(data.error || 'Firecrawl scrape failed');
 
     return {
-      content: data.data?.markdown || '',
+      content: data.data?.markdown || data.data?.content || '',
       metadata: data.data?.metadata || {},
     };
   }
@@ -61,8 +66,24 @@ class FirecrawlProvider extends BaseScraper {
       body: JSON.stringify({ query, limit: opts.limit || 10 }),
     });
 
+    if (!response.ok) {
+      const text = await response.text().catch(() => '');
+      throw new Error(`Firecrawl search HTTP ${response.status}: ${text.substring(0, 200)}`);
+    }
+
     const data = await response.json();
-    return data.data || [];
+    if (!data.success && data.error) throw new Error(`Firecrawl search: ${data.error}`);
+
+    // Normalize Firecrawl response fields to the standard interface
+    // Firecrawl returns: { url, title, description, markdown }
+    // We normalize to: { url, title, snippet, content }
+    const results = data.data || [];
+    return results.map(r => ({
+      url: r.url || '',
+      title: r.title || '',
+      snippet: r.description || r.snippet || '',
+      content: r.markdown || r.content || r.description || '',
+    }));
   }
 }
 

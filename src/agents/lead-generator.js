@@ -69,6 +69,7 @@ class LeadGeneratorAgent extends BaseAgent {
       // Attempt scraping
       let allScrapedContent = [];
       let scrapeSuccesses = 0;
+      let scrapeErrors = [];
       for (const query of searchQueries) {
         try {
           if (query.url) {
@@ -83,20 +84,36 @@ class LeadGeneratorAgent extends BaseAgent {
             }
           } else if (query.search) {
             const results = await this.scraper.search(query.search, { limit: 5 });
-            for (const r of results) {
-              if ((r.snippet || r.content || '').length > 20) {
-                allScrapedContent.push({
-                  source: r.url || query.search,
-                  source_type: query.type,
-                  content: `${r.title || ''}: ${r.snippet || r.content || ''}`.substring(0, 2000),
-                });
-                scrapeSuccesses++;
+            if (results && results.length > 0) {
+              for (const r of results) {
+                const text = r.content || r.snippet || r.description || r.markdown || '';
+                if (text.length > 20) {
+                  allScrapedContent.push({
+                    source: r.url || query.search,
+                    source_type: query.type,
+                    content: `${r.title || ''}: ${text}`.substring(0, 2000),
+                  });
+                  scrapeSuccesses++;
+                }
               }
             }
           }
-        } catch {
-          // Silently skip — we'll fall back to AI prospecting
+        } catch (err) {
+          const label = (query.url || query.search || '').substring(0, 60);
+          scrapeErrors.push(`${label}: ${err.message}`);
         }
+      }
+
+      // Log scrape errors to activity feed so users can diagnose
+      if (scrapeErrors.length > 0) {
+        emitActivity(profile.id, {
+          agentRunId: runId,
+          eventType: 'scrape_errors',
+          icon: 'bi-exclamation-triangle',
+          color: 'var(--uae-orange, #f59e0b)',
+          title: `${scrapeErrors.length} source(s) failed to scrape`,
+          detail: scrapeErrors.slice(0, 3).join(' | '),
+        });
       }
 
       // Determine mode: scraped data available or AI prospecting
@@ -192,6 +209,7 @@ class LeadGeneratorAgent extends BaseAgent {
         })),
         sources_scanned: searchQueries.length,
         sources_successful: scrapeSuccesses,
+        scrape_errors: scrapeErrors.length > 0 ? scrapeErrors.slice(0, 5) : undefined,
       }, 0);
 
     } catch (err) {
