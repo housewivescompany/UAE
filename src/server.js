@@ -17,6 +17,15 @@ if (isProd) {
 // ── Run migrations on boot (idempotent) ──────────────
 require('./db/migrate');
 
+// ── Auto-seed if no users exist (first deploy) ───────
+const { getDb } = require('./db/connection');
+const seedDb = getDb();
+const userCount = seedDb.prepare('SELECT COUNT(*) as cnt FROM users').get();
+if (userCount.cnt === 0) {
+  console.log('No users found — running initial seed...');
+  require('./db/seed');
+}
+
 // ── View engine ───────────────────────────────────────
 app.engine('hbs', engine({
   extname: '.hbs',
