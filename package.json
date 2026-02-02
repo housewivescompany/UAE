@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "description": "Universal Agentic Engine - B2B SaaS platform for Digital Workers and Constituent Engagement",
   "main": "src/server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "migrate": "node src/db/migrate.js",
-    "seed": "node src/db/seed.js"
+    "seed": "node src/db/seed.js",
+    "render:build": "bash scripts/render-build.sh"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

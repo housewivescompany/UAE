@@ -11,10 +11,12 @@
  *  - Full audit trail on every agent interaction
  */
 
+require('dotenv').config({ path: require('path').join(__dirname, '..', '..', '.env') });
 const path = require('path');
 const Database = require('better-sqlite3');
 
-const DB_PATH = path.join(__dirname, '..', '..', 'uae.db');
+const DB_DIR = process.env.DB_DIR || path.join(__dirname, '..', '..');
+const DB_PATH = path.join(DB_DIR, 'uae.db');
 
 function migrate() {
   const db = new Database(DB_PATH);

@@ -1,7 +1,9 @@
 const path = require('path');
 const Database = require('better-sqlite3');
 
-const DB_PATH = path.join(__dirname, '..', '..', 'uae.db');
+// On Render, use the persistent disk mount path. Locally, use project root.
+const DB_DIR = process.env.DB_DIR || path.join(__dirname, '..', '..');
+const DB_PATH = path.join(DB_DIR, 'uae.db');
 
 let _db = null;
 
@@ -14,4 +16,4 @@ function getDb() {
   return _db;
 }
 
-module.exports = { getDb };
+module.exports = { getDb, DB_PATH };

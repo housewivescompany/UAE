@@ -5,8 +5,17 @@ const session = require('express-session');
 const flash = require('connect-flash');
 const path = require('path');
 
+const isProd = process.env.NODE_ENV === 'production';
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// ── Production: trust Render's reverse proxy ─────────
+if (isProd) {
+  app.set('trust proxy', 1);
+}
+
+// ── Run migrations on boot (idempotent) ──────────────
+require('./db/migrate');
 
 // ── View engine ───────────────────────────────────────
 app.engine('hbs', engine({
@@ -31,6 +40,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'uae-dev-secret',
   resave: false,
   saveUninitialized: false,
+  cookie: {
+    secure: isProd,        // HTTPS only in production (Render terminates TLS)
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000,  // 24 hours
+  },
 }));
 app.use(flash());
 
@@ -59,8 +73,8 @@ app.use((req, res) => {
 });
 
 // ── Start ─────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`UAE running → http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`UAE running → port ${PORT} [${isProd ? 'production' : 'development'}]`);
 });
 
 module.exports = app;

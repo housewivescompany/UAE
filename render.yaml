@@ -1,0 +1,49 @@
+# ─────────────────────────────────────────────────────────
+# Render Blueprint — Universal Agentic Engine
+# Deploy via: https://render.com/deploy → point to this repo
+# ─────────────────────────────────────────────────────────
+
+services:
+  - type: web
+    name: uae-engine
+    runtime: node
+    region: oregon
+    plan: starter          # $7/mo — includes persistent disk support
+    buildCommand: npm install && npm run render:build
+    startCommand: npm start
+
+    # ── Persistent Disk ─────────────────────────────────
+    # SQLite file lives here so it survives deploys/restarts
+    disk:
+      name: uae-data
+      mountPath: /data
+      sizeGB: 1
+
+    # ── Environment Variables ───────────────────────────
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_DIR
+        value: /data
+      - key: PORT
+        value: "10000"       # Render expects port 10000 for web services
+      - key: SESSION_SECRET
+        generateValue: true  # Render auto-generates a random string
+      - key: LLM_PROVIDER
+        value: openai
+      - key: OPENAI_API_KEY
+        sync: false          # set manually in Render dashboard
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: SCRAPE_PROVIDER
+        value: firecrawl
+      - key: FIRECRAWL_API_KEY
+        sync: false
+      - key: BROWSERBASE_API_KEY
+        sync: false
+
+    # ── Health Check ────────────────────────────────────
+    healthCheckPath: /login
+
+    # ── Auto-deploy on push ─────────────────────────────
+    autoDeploy: true
