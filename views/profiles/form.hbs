@@ -545,6 +545,8 @@ function pollAgentResult(runId) {
             const out = JSON.parse(run.output_data);
             if (out.leads && out.leads.length > 0) {
               outputBody.innerHTML = formatLeadOutput(out);
+            } else if (out.leads_found !== undefined) {
+              outputBody.innerHTML = formatLeadOutput(out);
             } else if (out.research) {
               outputBody.textContent = out.research;
             } else if (out.message) {
@@ -625,6 +627,20 @@ function formatLeadOutput(out) {
       html += escHtml(out.scrape_errors[i]) + '\n';
     }
     html += '</div></details>';
+  }
+
+  if (!out.leads || out.leads.length === 0) {
+    html += '<div style="text-align:center;padding:1rem;color:var(--uae-text-muted)">'
+      + '<i class="bi bi-search" style="font-size:1.5rem;display:block;margin-bottom:.5rem"></i>'
+      + '<div style="font-size:.85rem;margin-bottom:.5rem">No matching leads found in the scraped content.</div>';
+    if (out.sources_successful > 0) {
+      html += '<div style="font-size:.75rem">The scraper returned <strong>' + out.sources_successful + '</strong> results, but none matched your filters.</div>'
+        + '<div style="font-size:.75rem;margin-top:.4rem;color:var(--uae-accent)"><i class="bi bi-lightbulb me-1"></i>Try widening the <strong>Recency</strong> filter (e.g. "Last month" or "Last 3 months") or adding more keywords.</div>';
+    } else {
+      html += '<div style="font-size:.75rem;color:var(--uae-accent)"><i class="bi bi-lightbulb me-1"></i>Try different keywords or check your Firecrawl API key.</div>';
+    }
+    html += '</div>';
+    return html;
   }
 
   for (const lead of out.leads) {
@@ -736,11 +752,27 @@ function saveIntegration(provider) {
   function parseField(name) {
     const el = document.querySelector('[name="' + name + '"]');
     if (!el || !el.value.trim()) return [];
+    var raw = el.value.trim();
+    // Handle double-encoded JSON: "\"value\"" or escaped quotes
     try {
-      const parsed = JSON.parse(el.value);
-      return Array.isArray(parsed) ? parsed : [el.value];
-    } catch {
-      return el.value.split('\n').map(s => s.trim()).filter(Boolean);
+      var parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed.map(function(s) { return String(s).trim(); }).filter(Boolean);
+      if (typeof parsed === 'string') {
+        // Double-encoded: the DB stored a JSON string of a JSON array
+        try {
+          var inner = JSON.parse(parsed);
+          if (Array.isArray(inner)) return inner.map(function(s) { return String(s).trim(); }).filter(Boolean);
+        } catch(e2) {}
+        return [parsed];
+      }
+      return [raw];
+    } catch(e) {
+      // Not valid JSON — split by newlines, also handle comma-separated
+      var lines = raw.split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+      if (lines.length === 1 && lines[0].indexOf(',') > -1) {
+        return lines[0].split(',').map(function(s) { return s.trim().replace(/^["'\[]+|["'\]]+$/g, ''); }).filter(Boolean);
+      }
+      return lines;
     }
   }
 

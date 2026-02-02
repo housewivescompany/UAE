@@ -131,8 +131,23 @@ class LeadGeneratorAgent extends BaseAgent {
           : 'AI Prospecting Mode — generating leads from profile intelligence',
       });
 
-      // Generate leads (always succeeds)
-      const leads = await this.generateLeads(profile, allScrapedContent, maxLeads, mode, recencyFilter);
+      // Generate leads — auto-widen recency if 0 found on first try
+      let leads = await this.generateLeads(profile, allScrapedContent, maxLeads, mode, recencyFilter);
+
+      if (leads.length === 0 && mode === 'scraped' && recencyFilter !== 'any') {
+        const widenMap = { '1week': '1month', '1month': '3months', '3months': '6months', '6months': 'any' };
+        const widened = widenMap[recencyFilter];
+        if (widened) {
+          emitActivity(profile.id, {
+            agentRunId: runId,
+            eventType: 'retry',
+            icon: 'bi-arrow-repeat',
+            color: 'var(--uae-orange, #f59e0b)',
+            title: `0 leads with "${recencyFilter}" filter — retrying with "${widened}"`,
+          });
+          leads = await this.generateLeads(profile, allScrapedContent, maxLeads, mode, widened);
+        }
+      }
 
       // Create contact records
       const createdContacts = [];
