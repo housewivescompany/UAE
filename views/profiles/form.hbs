@@ -136,6 +136,7 @@
         <div class="mb-3">
           <label class="form-label">Agent Type</label>
           <select id="runAgentType" class="form-select" onchange="toggleRunFields()">
+            <option value="lead_generator">Lead Generator — Find new leads</option>
             {{#if (eq profile.mode 'business')}}
             <option value="researcher">Researcher — Find personalization hooks</option>
             <option value="outreach">Outreach — Draft a message</option>
@@ -148,8 +149,27 @@
           </select>
         </div>
 
+        <!-- Lead Generator fields (default visible) -->
+        <div id="runFields_lead_generator" class="run-fields">
+          <div class="mb-2">
+            <label class="form-label">Sources to Scan <span style="font-size:.65rem;color:var(--uae-text-muted)">(URLs — one per line, optional)</span></label>
+            <textarea id="run_lg_sources" class="form-control form-control-sm" rows="2" placeholder="https://reddit.com/r/plumbing&#10;https://nextdoor.com/...&#10;https://twitter.com/search?q=plumber+needed"></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Keywords <span style="font-size:.65rem;color:var(--uae-text-muted)">(extra search terms — one per line)</span></label>
+            <textarea id="run_lg_keywords" class="form-control form-control-sm" rows="2" placeholder="need a plumber urgently&#10;plumbing emergency help&#10;looking for plumber recommendation"></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Max Leads</label>
+            <input type="number" id="run_lg_max" class="form-control form-control-sm" value="10" min="1" max="50">
+          </div>
+          <div style="font-size:.7rem;color:var(--uae-text-muted);margin-bottom:.5rem">
+            <i class="bi bi-info-circle me-1"></i>The agent will also auto-generate searches based on your profile's services and target persona.
+          </div>
+        </div>
+
         <!-- Researcher fields -->
-        <div id="runFields_researcher" class="run-fields" {{#if (eq profile.mode 'political')}}style="display:none"{{/if}}>
+        <div id="runFields_researcher" class="run-fields" style="display:none">
           <div class="mb-2">
             <label class="form-label">Target URL <span style="font-size:.65rem;color:var(--uae-text-muted)">(company or LinkedIn page)</span></label>
             <input type="url" id="run_target_url" class="form-control form-control-sm" placeholder="https://example.com">
@@ -409,7 +429,13 @@ function runAgent() {
 
   // Build input data based on agent type
   let inputData = {};
-  if (agentType === 'researcher') {
+  if (agentType === 'lead_generator') {
+    inputData = {
+      sources: document.getElementById('run_lg_sources').value.split('\n').filter(Boolean),
+      keywords: document.getElementById('run_lg_keywords').value.split('\n').filter(Boolean),
+      max_leads: parseInt(document.getElementById('run_lg_max').value) || 10,
+    };
+  } else if (agentType === 'researcher') {
     inputData = {
       target_url: document.getElementById('run_target_url').value,
       target_name: document.getElementById('run_target_name').value,

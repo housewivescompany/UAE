@@ -167,7 +167,8 @@ function migrate() {
       agent_type      TEXT NOT NULL
                         CHECK (agent_type IN (
                           'researcher','outreach','secretary',
-                          'issue_scout','persuader','donor_closer'
+                          'issue_scout','persuader','donor_closer',
+                          'lead_generator'
                         )),
       status          TEXT NOT NULL DEFAULT 'queued'
                         CHECK (status IN ('queued','running','completed','failed')),
@@ -225,7 +226,66 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_messages_contact ON messages(contact_id);
     CREATE INDEX IF NOT EXISTS idx_messages_run     ON messages(agent_run_id);
 
+    /* ================================================================
+       ACTIVITY LOG — unified event feed for dashboard
+       ================================================================ */
+    CREATE TABLE IF NOT EXISTS activity_log (
+      id          TEXT PRIMARY KEY,
+      profile_id  TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+      agent_run_id TEXT REFERENCES agent_runs(id) ON DELETE SET NULL,
+      contact_id  TEXT REFERENCES contacts(id) ON DELETE SET NULL,
+      event_type  TEXT NOT NULL,
+      icon        TEXT DEFAULT 'bi-circle',
+      color       TEXT DEFAULT 'var(--uae-text-muted)',
+      title       TEXT NOT NULL,
+      detail      TEXT,
+      created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_activity_profile ON activity_log(profile_id);
+    CREATE INDEX IF NOT EXISTS idx_activity_date ON activity_log(created_at);
+
   `);
+
+  // ── Schema migration: widen agent_type CHECK for existing DBs ──
+  // SQLite doesn't support ALTER CHECK. Recreate the table if it
+  // doesn't include 'lead_generator'.
+  try {
+    db.prepare("INSERT INTO agent_runs (id, profile_id, agent_type, status) VALUES ('__test__', (SELECT id FROM profiles LIMIT 1), 'lead_generator', 'queued')").run();
+    db.prepare("DELETE FROM agent_runs WHERE id = '__test__'").run();
+  } catch {
+    // CHECK failed — need to recreate
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS agent_runs_new (
+        id              TEXT PRIMARY KEY,
+        profile_id      TEXT NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        contact_id      TEXT REFERENCES contacts(id) ON DELETE SET NULL,
+        agent_type      TEXT NOT NULL
+                          CHECK (agent_type IN (
+                            'researcher','outreach','secretary',
+                            'issue_scout','persuader','donor_closer',
+                            'lead_generator'
+                          )),
+        status          TEXT NOT NULL DEFAULT 'queued'
+                          CHECK (status IN ('queued','running','completed','failed')),
+        input_data      TEXT,
+        output_data     TEXT,
+        llm_provider    TEXT,
+        tokens_used     INTEGER DEFAULT 0,
+        cost_cents      INTEGER DEFAULT 0,
+        started_at      TEXT,
+        completed_at    TEXT,
+        created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+      INSERT INTO agent_runs_new SELECT * FROM agent_runs;
+      DROP TABLE agent_runs;
+      ALTER TABLE agent_runs_new RENAME TO agent_runs;
+      CREATE INDEX IF NOT EXISTS idx_agent_runs_profile ON agent_runs(profile_id);
+      CREATE INDEX IF NOT EXISTS idx_agent_runs_type    ON agent_runs(agent_type);
+      CREATE INDEX IF NOT EXISTS idx_agent_runs_status  ON agent_runs(status);
+    `);
+    console.log('  Migrated agent_runs table to include lead_generator');
+  }
 
   console.log('Migration complete → uae.db');
   db.close();

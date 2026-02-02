@@ -11,8 +11,12 @@ const SecretaryAgent = require('./secretary');
 const IssueScoutAgent = require('./issue-scout');
 const PersuaderAgent = require('./persuader');
 const DonorCloserAgent = require('./donor-closer');
+const LeadGeneratorAgent = require('./lead-generator');
 
 const agents = {
+  // Universal agents (both modes)
+  lead_generator: LeadGeneratorAgent,
+
   // Business agents
   researcher: ResearcherAgent,
   outreach: OutreachAgent,

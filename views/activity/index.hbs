@@ -1,0 +1,209 @@
+<div class="page-header">
+  <h2><i class="bi bi-activity me-2"></i>Activity Feed</h2>
+  <div class="d-flex align-items-center gap-2">
+    <select id="profileFilter" class="form-select form-select-sm" style="background:var(--uae-dark);border-color:var(--uae-border);color:var(--uae-text);width:auto;font-size:.8rem" onchange="filterProfile(this.value)">
+      <option value="">All Profiles</option>
+      {{#each profiles}}
+      <option value="{{this.id}}" {{#if (eq this.id ../selectedProfile)}}selected{{/if}}>{{this.name}}</option>
+      {{/each}}
+    </select>
+    <div id="liveIndicator" style="display:flex;align-items:center;gap:.4rem;font-size:.75rem;color:var(--uae-green)">
+      <span style="width:8px;height:8px;background:var(--uae-green);border-radius:50%;display:inline-block;animation:pulse 2s infinite"></span>
+      Live
+    </div>
+  </div>
+</div>
+
+<style>
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.event-row {
+  display: flex;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-left: 2px solid var(--uae-border);
+  margin-left: 1rem;
+  position: relative;
+  transition: background 0.2s;
+}
+.event-row:hover {
+  background: rgba(79, 140, 255, 0.04);
+}
+.event-row.new-event {
+  animation: slideIn 0.3s ease-out;
+  background: rgba(0, 196, 140, 0.06);
+}
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.event-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  background: var(--uae-dark);
+  border: 1px solid var(--uae-border);
+  margin-left: -1.5rem;
+}
+.event-time {
+  font-size: 0.7rem;
+  color: var(--uae-text-muted);
+  white-space: nowrap;
+  min-width: 130px;
+}
+.event-title {
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.event-detail {
+  color: var(--uae-text-muted);
+  font-size: 0.78rem;
+  margin-top: 0.15rem;
+}
+.event-profile-tag {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+}
+</style>
+
+<!-- ── Stats bar ─────────────────────────────────────── -->
+<div class="stat-grid mb-4">
+  <div class="uae-card">
+    <div class="card-label">Total Events</div>
+    <div class="card-value" id="statTotal">{{events.length}}</div>
+  </div>
+  <div class="uae-card" style="border-left:3px solid var(--uae-green)">
+    <div class="card-label"><i class="bi bi-person-plus me-1"></i>Leads Found</div>
+    <div class="card-value" id="statLeads">0</div>
+  </div>
+  <div class="uae-card" style="border-left:3px solid var(--uae-accent)">
+    <div class="card-label"><i class="bi bi-robot me-1"></i>Agent Runs</div>
+    <div class="card-value" id="statRuns">0</div>
+  </div>
+  <div class="uae-card" style="border-left:3px solid var(--uae-orange)">
+    <div class="card-label"><i class="bi bi-exclamation-triangle me-1"></i>Errors</div>
+    <div class="card-value" id="statErrors">0</div>
+  </div>
+</div>
+
+<!-- ── Event Feed ────────────────────────────────────── -->
+<div class="uae-card">
+  <div id="eventFeed">
+    {{#if events.length}}
+    {{#each events}}
+    <div class="event-row" data-id="{{this.id}}" data-type="{{this.event_type}}">
+      <div class="event-icon" style="color:{{this.color}}"><i class="bi {{this.icon}}"></i></div>
+      <div style="flex:1">
+        <div class="d-flex align-items-center gap-2">
+          <span class="event-title">{{this.title}}</span>
+          <span class="event-profile-tag {{#if (eq this.profile_mode 'political')}}badge-political{{else}}badge-business{{/if}}">{{this.profile_name}}</span>
+        </div>
+        {{#if this.detail}}
+        <div class="event-detail">{{this.detail}}</div>
+        {{/if}}
+      </div>
+      <div class="event-time">{{formatDate this.created_at}}</div>
+    </div>
+    {{/each}}
+    {{else}}
+    <div class="text-center py-5" id="emptyState">
+      <i class="bi bi-activity" style="font-size:3rem;color:var(--uae-text-muted)"></i>
+      <h5 style="color:#fff;margin-top:1rem">No Activity Yet</h5>
+      <p style="color:var(--uae-text-muted);font-size:.85rem">Run an agent from a profile page to see live events here.</p>
+    </div>
+    {{/if}}
+  </div>
+</div>
+
+<script>
+// ── Live polling ────────────────────────────────────
+let lastEventTime = '{{#if events.length}}{{events.[0].created_at}}{{else}}1970-01-01{{/if}}';
+const tenantId = '{{tenantId}}';
+const profileFilter = '{{selectedProfile}}';
+
+function filterProfile(val) {
+  window.location.href = '/activity' + (val ? '?profile=' + val : '');
+}
+
+function updateStats() {
+  const rows = document.querySelectorAll('.event-row');
+  let leads = 0, runs = 0, errors = 0;
+  rows.forEach(r => {
+    const t = r.dataset.type;
+    if (t === 'lead_found') leads++;
+    if (t === 'agent_start') runs++;
+    if (t === 'agent_error' || t === 'scrape_error') errors++;
+  });
+  document.getElementById('statTotal').textContent = rows.length;
+  document.getElementById('statLeads').textContent = leads;
+  document.getElementById('statRuns').textContent = runs;
+  document.getElementById('statErrors').textContent = errors;
+}
+
+function pollEvents() {
+  const url = profileFilter
+    ? `/api/activity/${profileFilter}?since=${encodeURIComponent(lastEventTime)}`
+    : `/api/activity?tenant_id=${tenantId}&since=${encodeURIComponent(lastEventTime)}`;
+
+  fetch(url)
+    .then(r => r.json())
+    .then(events => {
+      if (!events.length) return;
+
+      const emptyState = document.getElementById('emptyState');
+      if (emptyState) emptyState.remove();
+
+      // Events come newest-first, so reverse to insert in order
+      events.reverse().forEach(evt => {
+        // Skip if already in DOM
+        if (document.querySelector(`[data-id="${evt.id}"]`)) return;
+
+        lastEventTime = evt.created_at;
+
+        const row = document.createElement('div');
+        row.className = 'event-row new-event';
+        row.dataset.id = evt.id;
+        row.dataset.type = evt.event_type;
+        row.innerHTML = `
+          <div class="event-icon" style="color:${evt.color || 'var(--uae-text-muted)'}"><i class="bi ${evt.icon || 'bi-circle'}"></i></div>
+          <div style="flex:1">
+            <div class="d-flex align-items-center gap-2">
+              <span class="event-title">${escHtml(evt.title)}</span>
+              <span class="event-profile-tag ${evt.profile_mode === 'political' ? 'badge-political' : 'badge-business'}">${escHtml(evt.profile_name || '')}</span>
+            </div>
+            ${evt.detail ? `<div class="event-detail">${escHtml(evt.detail)}</div>` : ''}
+          </div>
+          <div class="event-time">${new Date(evt.created_at + 'Z').toLocaleString()}</div>
+        `;
+
+        const feed = document.getElementById('eventFeed');
+        feed.insertBefore(row, feed.firstChild);
+
+        // Remove animation class after it plays
+        setTimeout(() => row.classList.remove('new-event'), 1000);
+      });
+
+      updateStats();
+    })
+    .catch(() => {});
+}
+
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+updateStats();
+setInterval(pollEvents, 2000);
+</script>

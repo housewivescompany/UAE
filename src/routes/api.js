@@ -47,6 +47,38 @@ router.get('/agents/runs/:id', (req, res) => {
   res.json(run);
 });
 
+// ── Activity feed (polling) ──────────────────────────
+router.get('/activity/:profileId', (req, res) => {
+  const db = getDb();
+  const since = req.query.since || '1970-01-01';
+  const events = db.prepare(`
+    SELECT al.*, p.name as profile_name
+    FROM activity_log al
+    JOIN profiles p ON al.profile_id = p.id
+    WHERE al.profile_id = ? AND al.created_at > ?
+    ORDER BY al.created_at DESC
+    LIMIT 100
+  `).all(req.params.profileId, since);
+  res.json(events);
+});
+
+// ── Activity feed for entire tenant ──────────────────
+router.get('/activity', (req, res) => {
+  const db = getDb();
+  const tenantId = req.query.tenant_id;
+  const since = req.query.since || '1970-01-01';
+  if (!tenantId) return res.json([]);
+  const events = db.prepare(`
+    SELECT al.*, p.name as profile_name
+    FROM activity_log al
+    JOIN profiles p ON al.profile_id = p.id
+    WHERE p.tenant_id = ? AND al.created_at > ?
+    ORDER BY al.created_at DESC
+    LIMIT 200
+  `).all(tenantId, since);
+  res.json(events);
+});
+
 // ── Webhook receiver (inbound replies, NationBuilder sync) ──
 router.post('/webhook/:provider', (req, res) => {
   // Extensible webhook handler — log and route to appropriate agent
