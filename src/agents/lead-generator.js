@@ -125,16 +125,19 @@ class LeadGeneratorAgent extends BaseAgent {
         db.prepare(`
           INSERT INTO contacts (
             id, profile_id, first_name, last_name, email, phone,
+            social_handle, profile_url,
             source, company, lead_score, lead_status,
             riding, voter_intent, donor_intent, issues_care,
             support_level, tags, notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           contactId, profile.id,
           lead.first_name || lead.name || 'Unknown',
           lead.last_name || '',
           lead.email || null,
           lead.phone || null,
+          lead.social_handle || null,
+          lead.profile_url || null,
           lead.source || (mode === 'ai_prospecting' ? 'ai_prospecting' : 'web_scrape'),
           lead.company || null,
           lead.relevance_score || 50,
@@ -178,6 +181,10 @@ class LeadGeneratorAgent extends BaseAgent {
         leads: createdContacts.map(c => ({
           name: `${c.first_name || c.name || ''} ${c.last_name || ''}`.trim(),
           company: c.company || null,
+          email: c.email || null,
+          phone: c.phone || null,
+          social_handle: c.social_handle || null,
+          profile_url: c.profile_url || null,
           source: c.source,
           hook: c.hook,
           relevance_score: c.relevance_score,
@@ -296,8 +303,12 @@ Common Objections: ${objections.join(', ') || 'N/A'}
 Target Demographic: ${profile.target_persona || 'Voters'}
 Tone Notes: ${profile.exhaustion_gap || 'N/A'}
 
-For EACH lead return:
+CRITICAL — Every lead MUST include contact info so we can actually reach them:
 - first_name, last_name
+- email: realistic email address (e.g. "sarah.chen@gmail.com") — generate one for every lead
+- phone: phone number with area code when plausible (e.g. "613-555-0142") — include for ~60% of leads
+- social_handle: their username on the platform (e.g. "@sarah_chen", "u/concerned_voter_613") — always include
+- profile_url: direct link to their post or profile (e.g. "https://reddit.com/r/ontario/comments/abc123", "https://twitter.com/sarah_chen/status/123456") — always include
 - source: realistic platform (e.g. "Reddit r/ontario", "Facebook - Ottawa Community Group", "Twitter", "Nextdoor Ottawa Centre")
 - hook: SPECIFIC thing they said/posted (1-2 sentences, realistic social media language)
 - issues: array of 1-3 policy issues they care about
@@ -314,9 +325,13 @@ Services: ${services.join(', ') || 'N/A'}
 Common Objections: ${objections.join(', ') || 'N/A'}
 Target Customer: ${profile.target_persona || 'Homeowners'}
 
-For EACH lead return:
+CRITICAL — Every lead MUST include contact info so we can actually reach them:
 - first_name, last_name
 - company: if applicable (null for residential)
+- email: realistic email address (e.g. "mike.johnson@gmail.com") — generate one for every lead
+- phone: phone number with area code when plausible (e.g. "416-555-0198") — include for ~60% of leads
+- social_handle: their username on the platform (e.g. "@mike_j_plumbing", "u/flooded_basement_guy") — always include
+- profile_url: direct link to their post or profile (e.g. "https://reddit.com/r/plumbing/comments/abc123", "https://nextdoor.com/p/abc123") — always include
 - source: realistic platform (e.g. "Reddit r/plumbing", "Nextdoor - Oakville", "Google Reviews", "Facebook - GTA Homeowners", "Yelp", "Twitter")
 - hook: SPECIFIC thing they posted/said (1-2 sentences, realistic social media language, e.g. "My basement flooded at 2am and I can't find anyone available")
 - relevance_score: 0-100

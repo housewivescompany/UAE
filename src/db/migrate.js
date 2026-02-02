@@ -127,6 +127,8 @@ function migrate() {
       last_name       TEXT,
       email           TEXT,
       phone           TEXT,
+      social_handle   TEXT,             -- @username, Reddit u/name, etc.
+      profile_url     TEXT,             -- link to social profile or original post
       source          TEXT,             -- where we found them
 
       /* ── Business fields ───────────────────────────────────────── */
@@ -246,6 +248,19 @@ function migrate() {
     CREATE INDEX IF NOT EXISTS idx_activity_date ON activity_log(created_at);
 
   `);
+
+  // ── Schema migration: add contact info columns for lead generator ──
+  const newCols = [
+    ['social_handle', 'TEXT'],   // @username, Reddit u/name, etc.
+    ['profile_url',   'TEXT'],   // link to their social profile or post
+  ];
+  for (const [col, type] of newCols) {
+    try {
+      db.exec(`ALTER TABLE contacts ADD COLUMN ${col} ${type}`);
+    } catch {
+      // column already exists — ignore
+    }
+  }
 
   // ── Schema migration: widen agent_type CHECK for existing DBs ──
   // SQLite doesn't support ALTER CHECK. Recreate the table if it

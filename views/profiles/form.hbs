@@ -259,7 +259,7 @@
           <h6 style="color:#fff;margin:0"><i class="bi bi-terminal me-2"></i>Agent Output</h6>
           <span id="agentOutputStatus" class="badge bg-info" style="font-size:.65rem">Running...</span>
         </div>
-        <div id="agentOutputBody" style="background:var(--uae-dark);border:1px solid var(--uae-border);border-radius:6px;padding:.75rem;color:var(--uae-text);font-size:.8rem;white-space:pre-wrap;max-height:400px;overflow-y:auto">
+        <div id="agentOutputBody" style="background:var(--uae-dark);border:1px solid var(--uae-border);border-radius:6px;padding:.75rem;color:var(--uae-text);font-size:.8rem;white-space:pre-wrap;max-height:600px;overflow-y:auto">
         </div>
       </div>
 
@@ -599,6 +599,24 @@ function formatLeadOutput(out) {
     }
     if (lead.hook) {
       html += '<div style="color:var(--uae-text);font-size:.78rem;margin:.3rem 0;padding:.35rem .5rem;background:rgba(79,140,255,.06);border-left:2px solid var(--uae-accent);border-radius:0 4px 4px 0;font-style:italic">"' + escHtml(lead.hook) + '"</div>';
+    }
+    // ── Contact info bar ──
+    var contactParts = [];
+    if (lead.email) contactParts.push('<a href="mailto:' + escHtml(lead.email) + '" style="color:var(--uae-accent);text-decoration:none" title="Email"><i class="bi bi-envelope-fill me-1"></i>' + escHtml(lead.email) + '</a>');
+    if (lead.phone) contactParts.push('<a href="tel:' + escHtml(lead.phone) + '" style="color:var(--uae-accent);text-decoration:none" title="Phone"><i class="bi bi-telephone-fill me-1"></i>' + escHtml(lead.phone) + '</a>');
+    if (lead.social_handle) {
+      if (lead.profile_url) {
+        contactParts.push('<a href="' + escHtml(lead.profile_url) + '" target="_blank" rel="noopener" style="color:var(--uae-accent);text-decoration:none" title="Social profile"><i class="bi bi-at me-0"></i>' + escHtml(lead.social_handle) + '</a>');
+      } else {
+        contactParts.push('<span style="color:var(--uae-accent)" title="Social handle"><i class="bi bi-at me-0"></i>' + escHtml(lead.social_handle) + '</span>');
+      }
+    } else if (lead.profile_url) {
+      contactParts.push('<a href="' + escHtml(lead.profile_url) + '" target="_blank" rel="noopener" style="color:var(--uae-accent);text-decoration:none" title="Profile link"><i class="bi bi-box-arrow-up-right me-1"></i>Profile</a>');
+    }
+    if (contactParts.length > 0) {
+      html += '<div style="display:flex;flex-wrap:wrap;gap:.5rem;margin:.35rem 0;padding:.3rem .5rem;background:rgba(0,0,0,.15);border-radius:4px;font-size:.72rem;align-items:center">'
+        + contactParts.join('<span style="color:var(--uae-border)">|</span>')
+        + '</div>';
     }
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:.35rem;flex-wrap:wrap;gap:.3rem">'
       + '<span style="color:var(--uae-text-muted);font-size:.7rem"><i class="bi bi-link-45deg me-1"></i>' + escHtml(lead.source || '') + '</span>'
