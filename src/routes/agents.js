@@ -40,15 +40,18 @@ router.get('/', (req, res) => {
   });
 });
 
-// ── Trigger an agent run ──────────────────────────────
+// ── Trigger an agent run (handles both form POST and JSON) ──
 router.post('/run', async (req, res) => {
   const db = getDb();
+  const isJson = req.headers['accept']?.includes('application/json') ||
+                 req.headers['content-type']?.includes('application/json');
   const { profile_id, agent_type, contact_id, input_data } = req.body;
 
   // Verify ownership
   const profile = db.prepare('SELECT * FROM profiles WHERE id = ? AND tenant_id = ?')
     .get(profile_id, req.session.user.tenant_id);
   if (!profile) {
+    if (isJson) return res.json({ error: 'Profile not found.' });
     req.flash('error', 'Profile not found.');
     return res.redirect('/agents');
   }
@@ -70,6 +73,10 @@ router.post('/run', async (req, res) => {
   } catch (err) {
     db.prepare("UPDATE agent_runs SET status = 'failed', output_data = ?, completed_at = datetime('now') WHERE id = ?")
       .run(JSON.stringify({ error: err.message }), runId);
+  }
+
+  if (isJson) {
+    return res.json({ run_id: runId, status: 'running' });
   }
 
   req.flash('success', `Agent "${agent_type}" started.`);

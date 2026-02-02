@@ -126,9 +126,123 @@
       {{/unless}}
     </div>
 
-    <!-- ── Right Column: Integrations ────────────── -->
+    <!-- ── Right Column: Run Agent + Integrations ── -->
     <div class="col-lg-4">
       {{#unless isNew}}
+      <!-- ── Run Agent Panel ─────────────────────── -->
+      <div class="uae-card mb-4">
+        <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-play-fill me-2" style="color:var(--uae-green)"></i>Run Agent</h6>
+
+        <div class="mb-3">
+          <label class="form-label">Agent Type</label>
+          <select id="runAgentType" class="form-select" onchange="toggleRunFields()">
+            {{#if (eq profile.mode 'business')}}
+            <option value="researcher">Researcher — Find personalization hooks</option>
+            <option value="outreach">Outreach — Draft a message</option>
+            <option value="secretary">Secretary — Handle a reply</option>
+            {{else}}
+            <option value="issue_scout">Issue Scout — Scan riding issues</option>
+            <option value="persuader">Persuader — Political outreach</option>
+            <option value="donor_closer">Donor Closer — Convert to donor</option>
+            {{/if}}
+          </select>
+        </div>
+
+        <!-- Researcher fields -->
+        <div id="runFields_researcher" class="run-fields" {{#if (eq profile.mode 'political')}}style="display:none"{{/if}}>
+          <div class="mb-2">
+            <label class="form-label">Target URL <span style="font-size:.65rem;color:var(--uae-text-muted)">(company or LinkedIn page)</span></label>
+            <input type="url" id="run_target_url" class="form-control form-control-sm" placeholder="https://example.com">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Target Name</label>
+            <input type="text" id="run_target_name" class="form-control form-control-sm" placeholder="John Smith">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Target Company</label>
+            <input type="text" id="run_target_company" class="form-control form-control-sm" placeholder="Acme Plumbing Co.">
+          </div>
+        </div>
+
+        <!-- Outreach fields -->
+        <div id="runFields_outreach" class="run-fields" style="display:none">
+          <div class="mb-2">
+            <label class="form-label">Recipient Name</label>
+            <input type="text" id="run_outreach_name" class="form-control form-control-sm" placeholder="Jane Doe">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Hook / Personalization</label>
+            <textarea id="run_outreach_hook" class="form-control form-control-sm" rows="2" placeholder="Recently renovated their kitchen, posted about a leak on Nextdoor..."></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Channel</label>
+            <select id="run_outreach_channel" class="form-select form-select-sm">
+              <option value="email">Email</option>
+              <option value="sms">SMS</option>
+              <option value="dm">Direct Message</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Secretary fields -->
+        <div id="runFields_secretary" class="run-fields" style="display:none">
+          <div class="mb-2">
+            <label class="form-label">Inbound Message</label>
+            <textarea id="run_secretary_message" class="form-control form-control-sm" rows="3" placeholder="Paste the reply you received..."></textarea>
+          </div>
+        </div>
+
+        <!-- Issue Scout fields -->
+        <div id="runFields_issue_scout" class="run-fields" style="display:none">
+          <div class="mb-2">
+            <label class="form-label">Sources to Monitor <span style="font-size:.65rem;color:var(--uae-text-muted)">(optional — URLs, one per line)</span></label>
+            <textarea id="run_scout_sources" class="form-control form-control-sm" rows="2" placeholder="https://reddit.com/r/ottawa&#10;https://ottawacitizen.com"></textarea>
+          </div>
+        </div>
+
+        <!-- Persuader fields -->
+        <div id="runFields_persuader" class="run-fields" style="display:none">
+          <div class="mb-2">
+            <label class="form-label">Constituent Name</label>
+            <input type="text" id="run_persuader_name" class="form-control form-control-sm" placeholder="Sarah Johnson">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Issue They Care About</label>
+            <input type="text" id="run_persuader_issue" class="form-control form-control-sm" placeholder="Housing affordability">
+          </div>
+        </div>
+
+        <!-- Donor Closer fields -->
+        <div id="runFields_donor_closer" class="run-fields" style="display:none">
+          <div class="mb-2">
+            <label class="form-label">Constituent Name</label>
+            <input type="text" id="run_closer_name" class="form-control form-control-sm" placeholder="Sarah Johnson">
+          </div>
+          <div class="mb-2">
+            <label class="form-label">Ask Type</label>
+            <select id="run_closer_ask" class="form-select form-select-sm">
+              <option value="donation">Donation</option>
+              <option value="volunteer">Volunteer</option>
+              <option value="town_hall">Town Hall Invite</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="button" id="runAgentBtn" class="btn btn-uae-green btn-sm w-100 mt-2" style="color:#fff" onclick="runAgent()">
+          <i class="bi bi-play-fill me-1"></i>Launch Agent
+        </button>
+      </div>
+
+      <!-- ── Agent Output ────────────────────────── -->
+      <div class="uae-card mb-4" id="agentOutputPanel" style="display:none">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h6 style="color:#fff;margin:0"><i class="bi bi-terminal me-2"></i>Agent Output</h6>
+          <span id="agentOutputStatus" class="badge bg-info" style="font-size:.65rem">Running...</span>
+        </div>
+        <div id="agentOutputBody" style="background:var(--uae-dark);border:1px solid var(--uae-border);border-radius:6px;padding:.75rem;color:var(--uae-text);font-size:.8rem;white-space:pre-wrap;max-height:400px;overflow-y:auto">
+        </div>
+      </div>
+
       <div class="uae-card mb-4">
         <h6 style="color:#fff;margin-bottom:1rem"><i class="bi bi-plug me-2"></i>Integrations</h6>
 
@@ -277,6 +391,150 @@ function testConnection(integrationId, btn) {
       btn.disabled = false;
       btn.innerHTML = '<i class="bi bi-lightning me-1"></i>Test Connection';
     });
+}
+
+function toggleRunFields() {
+  document.querySelectorAll('.run-fields').forEach(el => el.style.display = 'none');
+  const selected = document.getElementById('runAgentType').value;
+  const panel = document.getElementById('runFields_' + selected);
+  if (panel) panel.style.display = '';
+}
+
+function runAgent() {
+  const agentType = document.getElementById('runAgentType').value;
+  const btn = document.getElementById('runAgentBtn');
+  const outputPanel = document.getElementById('agentOutputPanel');
+  const outputBody = document.getElementById('agentOutputBody');
+  const outputStatus = document.getElementById('agentOutputStatus');
+
+  // Build input data based on agent type
+  let inputData = {};
+  if (agentType === 'researcher') {
+    inputData = {
+      target_url: document.getElementById('run_target_url').value,
+      target_name: document.getElementById('run_target_name').value,
+      target_company: document.getElementById('run_target_company').value,
+    };
+  } else if (agentType === 'outreach') {
+    inputData = {
+      contact: { first_name: document.getElementById('run_outreach_name').value },
+      hook: document.getElementById('run_outreach_hook').value,
+      channel: document.getElementById('run_outreach_channel').value,
+    };
+  } else if (agentType === 'secretary') {
+    inputData = {
+      inbound_message: document.getElementById('run_secretary_message').value,
+    };
+  } else if (agentType === 'issue_scout') {
+    inputData = {
+      sources: document.getElementById('run_scout_sources').value.split('\n').filter(Boolean),
+    };
+  } else if (agentType === 'persuader') {
+    inputData = {
+      contact: { first_name: document.getElementById('run_persuader_name').value },
+      issue: document.getElementById('run_persuader_issue').value,
+    };
+  } else if (agentType === 'donor_closer') {
+    inputData = {
+      contact: { first_name: document.getElementById('run_closer_name').value },
+      ask_type: document.getElementById('run_closer_ask').value,
+    };
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Running...';
+  outputPanel.style.display = '';
+  outputBody.textContent = 'Agent is processing...';
+  outputStatus.textContent = 'Running...';
+  outputStatus.className = 'badge bg-info';
+  outputStatus.style.fontSize = '.65rem';
+
+  fetch('/agents/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify({
+      profile_id: '{{profile.id}}',
+      agent_type: agentType,
+      input_data: JSON.stringify(inputData),
+    }),
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        outputStatus.textContent = 'Failed';
+        outputStatus.className = 'badge bg-danger';
+        outputStatus.style.fontSize = '.65rem';
+        outputBody.textContent = data.error;
+      } else {
+        // Poll for result
+        pollAgentResult(data.run_id);
+      }
+    })
+    .catch(err => {
+      outputStatus.textContent = 'Error';
+      outputStatus.className = 'badge bg-danger';
+      outputStatus.style.fontSize = '.65rem';
+      outputBody.textContent = err.message;
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Launch Agent';
+    });
+}
+
+function pollAgentResult(runId) {
+  const outputBody = document.getElementById('agentOutputBody');
+  const outputStatus = document.getElementById('agentOutputStatus');
+  const btn = document.getElementById('runAgentBtn');
+
+  let attempts = 0;
+  const poll = setInterval(() => {
+    attempts++;
+    fetch('/api/agents/runs/' + runId)
+      .then(r => r.json())
+      .then(run => {
+        if (run.status === 'completed') {
+          clearInterval(poll);
+          outputStatus.textContent = 'Complete';
+          outputStatus.className = 'badge bg-success';
+          outputStatus.style.fontSize = '.65rem';
+          try {
+            const out = JSON.parse(run.output_data);
+            if (out.research) {
+              outputBody.textContent = out.research;
+            } else if (out.message) {
+              outputBody.textContent = out.message;
+            } else {
+              outputBody.textContent = JSON.stringify(out, null, 2);
+            }
+          } catch {
+            outputBody.textContent = run.output_data || 'Done.';
+          }
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Launch Agent';
+        } else if (run.status === 'failed') {
+          clearInterval(poll);
+          outputStatus.textContent = 'Failed';
+          outputStatus.className = 'badge bg-danger';
+          outputStatus.style.fontSize = '.65rem';
+          try {
+            const out = JSON.parse(run.output_data);
+            outputBody.textContent = out.error || JSON.stringify(out, null, 2);
+          } catch {
+            outputBody.textContent = run.output_data || 'Agent failed.';
+          }
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Launch Agent';
+        } else {
+          outputBody.textContent = 'Agent is processing... (' + attempts + 's)';
+        }
+        if (attempts > 60) {
+          clearInterval(poll);
+          outputBody.textContent = 'Timed out waiting for result. Check the Agents page for run history.';
+          btn.disabled = false;
+          btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Launch Agent';
+        }
+      })
+      .catch(() => {});
+  }, 1000);
 }
 
 function saveIntegration(provider) {

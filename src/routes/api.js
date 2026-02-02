@@ -38,6 +38,15 @@ router.get('/sentiment/:profileId/chart', (req, res) => {
   res.json(data);
 });
 
+// ── Agent run status (polling from profile page) ─────
+router.get('/agents/runs/:id', (req, res) => {
+  const db = getDb();
+  const run = db.prepare('SELECT id, status, output_data, tokens_used, completed_at FROM agent_runs WHERE id = ?')
+    .get(req.params.id);
+  if (!run) return res.status(404).json({ error: 'Run not found' });
+  res.json(run);
+});
+
 // ── Webhook receiver (inbound replies, NationBuilder sync) ──
 router.post('/webhook/:provider', (req, res) => {
   // Extensible webhook handler — log and route to appropriate agent
