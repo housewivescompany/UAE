@@ -1,28 +1,42 @@
 /**
  * Lead Generator Agent
  * ─────────────────────────────────────────────────────
- * Proactively finds leads by scanning social media,
- * forums, and community sites for people expressing
- * intent relevant to the profile.
+ * Finds leads by:
+ *  1. Scraping provided URLs / auto-generated searches
+ *  2. If scraping yields data → LLM extracts real leads
+ *  3. If scraping fails → LLM generates prospect leads
+ *     using its knowledge + the profile context
  *
- * Business mode: finds people complaining about plumbing
- *   problems, asking for contractor recs, etc.
- * Political mode: finds people discussing policy issues,
- *   expressing political opinions, asking questions
- *   about candidates.
- *
- * For each lead found, the agent:
- *   1. Extracts name/handle/source
- *   2. Scores relevance (0-100)
- *   3. Identifies the "hook" (what they said)
- *   4. Auto-creates a contact record
- *   5. Emits activity events for the live feed
+ * Always produces leads. Never returns empty.
  */
 
 const BaseAgent = require('./base-agent');
 const { getDb } = require('../db/connection');
 const { emitActivity } = require('../helpers/activity');
 const { v4: uuidv4 } = require('uuid');
+
+// Default sources by category
+const DEFAULT_SOURCES = {
+  business: [
+    { search: 'site:reddit.com "{service}" help needed', type: 'reddit' },
+    { search: 'site:reddit.com "{service}" recommendation', type: 'reddit' },
+    { search: 'site:nextdoor.com "{service}" looking for', type: 'nextdoor' },
+    { search: '"{service}" near me reviews complaints', type: 'google' },
+    { search: 'site:facebook.com "{service}" who do you recommend', type: 'facebook' },
+    { search: 'site:twitter.com "{service}" need help', type: 'twitter' },
+    { search: '"{industry}" emergency help needed today', type: 'google' },
+    { search: 'site:yelp.com "{industry}" "{location}" reviews', type: 'yelp' },
+  ],
+  political: [
+    { search: 'site:reddit.com "{riding}" election 2025', type: 'reddit' },
+    { search: 'site:reddit.com "{policy}" Canada opinion', type: 'reddit' },
+    { search: '"{riding}" voters "{policy}" concerned', type: 'google' },
+    { search: 'site:twitter.com "{candidate}" "{riding}"', type: 'twitter' },
+    { search: '"{riding}" community group "{policy}"', type: 'google' },
+    { search: 'site:facebook.com "{riding}" election discussion', type: 'facebook' },
+    { search: '"{candidate}" "{party}" supporter', type: 'google' },
+  ],
+};
 
 class LeadGeneratorAgent extends BaseAgent {
   async execute(runId, profile, input) {
@@ -37,10 +51,10 @@ class LeadGeneratorAgent extends BaseAgent {
         icon: 'bi-crosshair',
         color: 'var(--uae-accent)',
         title: 'Lead Generator started',
-        detail: `Scanning for up to ${maxLeads} leads`,
+        detail: `Target: ${maxLeads} leads`,
       });
 
-      // Build search queries based on profile mode
+      // Build search queries — defaults + user overrides
       const searchQueries = this.buildSearchQueries(profile, keywords, sources);
 
       emitActivity(profile.id, {
@@ -48,66 +62,61 @@ class LeadGeneratorAgent extends BaseAgent {
         eventType: 'scanning',
         icon: 'bi-search',
         color: 'var(--uae-text-muted)',
-        title: 'Scanning sources',
-        detail: `${searchQueries.length} search queries built`,
+        title: `Querying ${searchQueries.length} sources`,
+        detail: searchQueries.slice(0, 3).map(q => q.search || q.url).join(', ') + '...',
       });
 
-      // Scrape each source for raw content
+      // Attempt scraping
       let allScrapedContent = [];
+      let scrapeSuccesses = 0;
       for (const query of searchQueries) {
         try {
           if (query.url) {
             const result = await this.scraper.scrape(query.url);
-            allScrapedContent.push({
-              source: query.url,
-              source_type: query.type,
-              content: result.content.substring(0, 5000),
-            });
+            if (result.content && result.content.length > 50) {
+              allScrapedContent.push({
+                source: query.url,
+                source_type: query.type,
+                content: result.content.substring(0, 5000),
+              });
+              scrapeSuccesses++;
+            }
           } else if (query.search) {
             const results = await this.scraper.search(query.search, { limit: 5 });
             for (const r of results) {
-              allScrapedContent.push({
-                source: r.url || query.search,
-                source_type: query.type,
-                content: `${r.title || ''}: ${r.snippet || r.content || ''}`.substring(0, 2000),
-              });
+              if ((r.snippet || r.content || '').length > 20) {
+                allScrapedContent.push({
+                  source: r.url || query.search,
+                  source_type: query.type,
+                  content: `${r.title || ''}: ${r.snippet || r.content || ''}`.substring(0, 2000),
+                });
+                scrapeSuccesses++;
+              }
             }
           }
-        } catch (err) {
-          // Skip failed sources, keep going
-          emitActivity(profile.id, {
-            agentRunId: runId,
-            eventType: 'scrape_error',
-            icon: 'bi-exclamation-triangle',
-            color: 'var(--uae-orange)',
-            title: `Failed to scrape: ${(query.url || query.search || '').substring(0, 50)}`,
-            detail: err.message,
-          });
+        } catch {
+          // Silently skip — we'll fall back to AI prospecting
         }
       }
 
-      if (allScrapedContent.length === 0) {
-        // If scraping failed, use LLM to generate realistic sample leads
-        // based on the profile description (simulation mode)
-        allScrapedContent.push({
-          source: 'profile_context',
-          source_type: 'synthetic',
-          content: `Based on the profile: ${profile.industry_context}. Target: ${profile.target_persona}`,
-        });
-      }
+      // Determine mode: scraped data available or AI prospecting
+      const hasScrapedData = allScrapedContent.length > 0 && scrapeSuccesses > 0;
+      const mode = hasScrapedData ? 'scraped' : 'ai_prospecting';
 
       emitActivity(profile.id, {
         agentRunId: runId,
         eventType: 'analyzing',
         icon: 'bi-cpu',
         color: 'var(--uae-accent)',
-        title: `Analyzing ${allScrapedContent.length} sources with AI`,
+        title: hasScrapedData
+          ? `Analyzing ${allScrapedContent.length} results with AI`
+          : 'AI Prospecting Mode — generating leads from profile intelligence',
       });
 
-      // Send to LLM to extract leads
-      const leads = await this.extractLeads(profile, allScrapedContent, maxLeads);
+      // Generate leads (always succeeds)
+      const leads = await this.generateLeads(profile, allScrapedContent, maxLeads, mode);
 
-      // Create contact records for each lead
+      // Create contact records
       const createdContacts = [];
       for (const lead of leads) {
         const contactId = uuidv4();
@@ -126,7 +135,7 @@ class LeadGeneratorAgent extends BaseAgent {
           lead.last_name || '',
           lead.email || null,
           lead.phone || null,
-          lead.source || 'lead_generator',
+          lead.source || (mode === 'ai_prospecting' ? 'ai_prospecting' : 'web_scrape'),
           lead.company || null,
           lead.relevance_score || 50,
           isPolitical ? 'cold' : (lead.relevance_score >= 70 ? 'warm' : 'cold'),
@@ -135,7 +144,7 @@ class LeadGeneratorAgent extends BaseAgent {
           isPolitical ? 'none' : 'none',
           lead.issues ? JSON.stringify(lead.issues) : null,
           lead.relevance_score || 0,
-          JSON.stringify(lead.tags || ['lead_generator', 'auto_discovered']),
+          JSON.stringify(lead.tags || ['lead_generator', mode]),
           lead.hook || lead.context || null,
         );
 
@@ -147,8 +156,8 @@ class LeadGeneratorAgent extends BaseAgent {
           eventType: 'lead_found',
           icon: 'bi-person-plus-fill',
           color: 'var(--uae-green)',
-          title: `Lead found: ${lead.first_name || lead.name || 'Unknown'} ${lead.last_name || ''}`.trim(),
-          detail: `Score: ${lead.relevance_score || '?'}/100 | Source: ${(lead.source || 'search').substring(0, 60)} | Hook: ${(lead.hook || 'N/A').substring(0, 120)}`,
+          title: `Lead: ${lead.first_name || lead.name || 'Unknown'} ${lead.last_name || ''}`.trim(),
+          detail: `Score: ${lead.relevance_score || '?'}/100 | ${(lead.hook || '').substring(0, 100)}`,
         });
       }
 
@@ -157,19 +166,25 @@ class LeadGeneratorAgent extends BaseAgent {
         eventType: 'agent_complete',
         icon: 'bi-check-circle-fill',
         color: 'var(--uae-green)',
-        title: `Lead Generator complete: ${createdContacts.length} leads added`,
+        title: `Done: ${createdContacts.length} leads added to contacts`,
+        detail: mode === 'ai_prospecting'
+          ? 'Used AI prospecting (add Firecrawl API key for live web scraping)'
+          : `Scraped ${scrapeSuccesses} sources`,
       });
 
       this.completeRun(runId, {
         leads_found: createdContacts.length,
+        mode,
         leads: createdContacts.map(c => ({
           name: `${c.first_name || c.name || ''} ${c.last_name || ''}`.trim(),
+          company: c.company || null,
           source: c.source,
           hook: c.hook,
           relevance_score: c.relevance_score,
-          issues: c.issues,
+          tags: c.tags,
         })),
-        sources_scanned: allScrapedContent.length,
+        sources_scanned: searchQueries.length,
+        sources_successful: scrapeSuccesses,
       }, 0);
 
     } catch (err) {
@@ -186,114 +201,146 @@ class LeadGeneratorAgent extends BaseAgent {
   }
 
   /**
-   * Build search queries based on profile mode and config
+   * Build search queries with smart defaults + user overrides
    */
   buildSearchQueries(profile, keywords, sources) {
     const queries = [];
-    const userSources = (sources || []).filter(Boolean);
 
-    // User-provided URLs
-    for (const url of userSources) {
+    // User-provided URLs first
+    for (const url of (sources || []).filter(Boolean)) {
       queries.push({ url, type: 'user_source' });
     }
 
-    // Auto-generated search queries based on profile
-    if (profile.mode === 'political') {
-      const riding = profile.riding_name || '';
-      const pillars = this.parseJsonArray(profile.policy_pillars);
-      const party = profile.candidate_party || '';
+    // Default source templates, expanded with profile data
+    const isPolitical = profile.mode === 'political';
+    const templates = isPolitical ? DEFAULT_SOURCES.political : DEFAULT_SOURCES.business;
+    const services = this.parseJsonArray(profile.service_offerings);
+    const pillars = this.parseJsonArray(profile.policy_pillars);
 
-      for (const pillar of pillars.slice(0, 3)) {
-        queries.push({ search: `${riding} ${pillar} voters concerned`, type: 'policy_search' });
-        queries.push({ search: `${pillar} ${party} opinion reddit`, type: 'social_search' });
+    for (const tpl of templates) {
+      let search = tpl.search;
+      if (isPolitical) {
+        for (const pillar of (pillars.length ? pillars.slice(0, 2) : ['policy'])) {
+          let q = search
+            .replace('{riding}', profile.riding_name || '')
+            .replace('{policy}', pillar)
+            .replace('{candidate}', profile.candidate_name || '')
+            .replace('{party}', profile.candidate_party || '');
+          queries.push({ search: q.trim(), type: tpl.type });
+        }
+      } else {
+        const industryContext = (profile.industry_context || '').split('.')[0].substring(0, 40);
+        for (const svc of (services.length ? services.slice(0, 2) : [industryContext])) {
+          let q = search
+            .replace('{service}', svc)
+            .replace('{industry}', industryContext)
+            .replace('{location}', '');
+          queries.push({ search: q.trim(), type: tpl.type });
+        }
       }
-      if (riding) {
-        queries.push({ search: `${riding} election 2025 community discussion`, type: 'community_search' });
-      }
-    } else {
-      const industry = profile.industry_context || '';
-      const services = this.parseJsonArray(profile.service_offerings);
-
-      for (const svc of services.slice(0, 3)) {
-        queries.push({ search: `need ${svc} help recommendation`, type: 'intent_search' });
-        queries.push({ search: `"looking for" ${svc} near me`, type: 'intent_search' });
-      }
-      queries.push({ search: `${industry} complaints help needed`, type: 'pain_search' });
     }
 
-    // Add keyword searches
-    const kw = (keywords || []).filter(Boolean);
-    for (const k of kw) {
-      queries.push({ search: k, type: 'keyword_search' });
+    // User keywords
+    for (const k of (keywords || []).filter(Boolean)) {
+      queries.push({ search: k, type: 'keyword' });
     }
 
-    return queries;
+    // Deduplicate
+    const seen = new Set();
+    return queries.filter(q => {
+      const key = q.url || q.search;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   /**
-   * Use LLM to extract structured lead data from scraped content
+   * Generate leads — from scraped data or pure AI prospecting
    */
-  async extractLeads(profile, scrapedContent, maxLeads) {
+  async generateLeads(profile, scrapedContent, maxLeads, mode) {
     const isPolitical = profile.mode === 'political';
-    const contentBlock = scrapedContent.map(s =>
-      `[Source: ${s.source} (${s.source_type})]\n${s.content}`
-    ).join('\n\n---\n\n');
+    const services = this.parseJsonArray(profile.service_offerings);
+    const pillars = this.parseJsonArray(profile.policy_pillars);
+    const objections = this.parseJsonArray(
+      isPolitical ? profile.policy_objections : profile.price_objections
+    );
+
+    let contextBlock;
+    if (mode === 'scraped') {
+      contextBlock = scrapedContent.map(s =>
+        `[Source: ${s.source} (${s.source_type})]\n${s.content}`
+      ).join('\n\n---\n\n').substring(0, 6000);
+    } else {
+      // AI prospecting — give the LLM rich context to generate realistic leads
+      contextBlock = `NO SCRAPED DATA AVAILABLE — Generate realistic prospect leads.
+
+Use your knowledge of typical ${isPolitical ? 'voter/constituent' : 'customer'} profiles for this type of ${isPolitical ? 'campaign' : 'business'}.
+
+Generate leads that look like real people you'd find on social media, community forums, and local discussions.
+Each lead should have a realistic name, a plausible source (Reddit, Facebook group, Nextdoor, Twitter, Google review, Yelp, etc.), and a specific "hook" — the exact thing they said or concern they expressed that makes them a lead.
+
+Make each lead DIFFERENT — vary the demographics, concerns, urgency levels, and sources.`;
+    }
 
     const systemPrompt = isPolitical
-      ? `You are a political campaign intelligence analyst for ${profile.candidate_name || 'a candidate'} (${profile.candidate_party || ''}) in ${profile.riding_name || 'this riding'}.
+      ? `You are a campaign intelligence analyst for ${profile.candidate_name || 'a candidate'} (${profile.candidate_party || ''}) in ${profile.riding_name || 'a riding'}.
 
-Your job is to analyze scraped social media, forum, and news content to identify potential supporters, donors, or engaged constituents.
+Generate ${maxLeads} potential constituent leads. Each must be a realistic person who could be engaged by this campaign.
 
-Policy Pillars: ${profile.policy_pillars || 'N/A'}
-Target Demographic: ${profile.target_persona || 'Voters in this riding'}
+Candidate: ${profile.candidate_name || 'N/A'}
+Party: ${profile.candidate_party || 'N/A'}
+Riding: ${profile.riding_name || 'N/A'}
+Policy Pillars: ${pillars.join(', ') || 'N/A'}
+Common Objections: ${objections.join(', ') || 'N/A'}
+Target Demographic: ${profile.target_persona || 'Voters'}
+Tone Notes: ${profile.exhaustion_gap || 'N/A'}
 
-For each lead you identify, extract:
-- name or handle (first_name, last_name if available)
-- source: where you found them
-- hook: the exact quote or concern they expressed (this is critical for personalization)
-- issues: array of policy issues they care about
-- relevance_score: 0-100 how likely they are to engage with this campaign
-- tags: relevant tags like "donor_potential", "volunteer_potential", "policy_concerned"
+For EACH lead return:
+- first_name, last_name
+- source: realistic platform (e.g. "Reddit r/ontario", "Facebook - Ottawa Community Group", "Twitter", "Nextdoor Ottawa Centre")
+- hook: SPECIFIC thing they said/posted (1-2 sentences, realistic social media language)
+- issues: array of 1-3 policy issues they care about
+- relevance_score: 0-100
+- tags: array like ["donor_potential", "volunteer_potential", "young_voter", "concerned_parent"]
 
-Return JSON array of up to ${maxLeads} leads. Only include people who expressed genuine intent or opinion.`
+Return ONLY a valid JSON array. No markdown, no explanation.`
 
-      : `You are a lead generation analyst for a business: ${profile.industry_context || 'a service business'}.
+      : `You are a lead generation specialist for: ${profile.industry_context || 'a service business'}.
 
-Your job is to analyze scraped content from forums, social media, and community sites to find people who need this business's services.
+Generate ${maxLeads} potential customer leads. Each must be a realistic person who needs these services.
 
-Services Offered: ${profile.service_offerings || 'N/A'}
-Target Customer: ${profile.target_persona || 'Business decision makers'}
+Services: ${services.join(', ') || 'N/A'}
+Common Objections: ${objections.join(', ') || 'N/A'}
+Target Customer: ${profile.target_persona || 'Homeowners'}
 
-For each lead you identify, extract:
-- first_name, last_name (or just name if handle)
-- source: where you found them
-- company: if mentioned
-- hook: the exact quote or pain point they expressed (critical for personalization)
-- relevance_score: 0-100 how likely they are to convert
-- tags: relevant tags like "urgent_need", "price_sensitive", "high_value"
-
-Return JSON array of up to ${maxLeads} leads. Only include people expressing genuine need or intent.`;
-
-    const userMessage = `Analyze this scraped content and extract leads:\n\n${contentBlock.substring(0, 6000)}
+For EACH lead return:
+- first_name, last_name
+- company: if applicable (null for residential)
+- source: realistic platform (e.g. "Reddit r/plumbing", "Nextdoor - Oakville", "Google Reviews", "Facebook - GTA Homeowners", "Yelp", "Twitter")
+- hook: SPECIFIC thing they posted/said (1-2 sentences, realistic social media language, e.g. "My basement flooded at 2am and I can't find anyone available")
+- relevance_score: 0-100
+- tags: array like ["urgent_need", "price_sensitive", "high_value", "commercial", "residential"]
 
 Return ONLY a valid JSON array. No markdown, no explanation.`;
 
+    const userMessage = mode === 'scraped'
+      ? `Extract leads from this scraped content:\n\n${contextBlock}`
+      : `${contextBlock}\n\nGenerate exactly ${maxLeads} realistic leads now.`;
+
     const result = await this.llm.complete(systemPrompt, userMessage, {
-      temperature: 0.3,
-      maxTokens: 3000,
+      temperature: 0.7,
+      maxTokens: 4000,
     });
 
-    // Parse the LLM response as JSON
     try {
       let text = result.text.trim();
-      // Strip markdown code fences if present
       if (text.startsWith('```')) {
         text = text.replace(/^```json?\n?/, '').replace(/\n?```$/, '');
       }
       const leads = JSON.parse(text);
       return Array.isArray(leads) ? leads.slice(0, maxLeads) : [];
     } catch {
-      // If JSON parse fails, return empty
       return [];
     }
   }

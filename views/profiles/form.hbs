@@ -164,7 +164,7 @@
             <input type="number" id="run_lg_max" class="form-control form-control-sm" value="10" min="1" max="50">
           </div>
           <div style="font-size:.7rem;color:var(--uae-text-muted);margin-bottom:.5rem">
-            <i class="bi bi-info-circle me-1"></i>The agent will also auto-generate searches based on your profile's services and target persona.
+            <i class="bi bi-info-circle me-1"></i>Keywords auto-populated from your profile. The agent also searches Reddit, Twitter, Nextdoor, Facebook, Google, and Yelp automatically.
           </div>
         </div>
 
@@ -524,10 +524,12 @@ function pollAgentResult(runId) {
           outputStatus.style.fontSize = '.65rem';
           try {
             const out = JSON.parse(run.output_data);
-            if (out.research) {
+            if (out.leads && out.leads.length > 0) {
+              outputBody.innerHTML = formatLeadOutput(out);
+            } else if (out.research) {
               outputBody.textContent = out.research;
             } else if (out.message) {
-              outputBody.textContent = out.message;
+              outputBody.innerHTML = formatMessageOutput(out);
             } else {
               outputBody.textContent = JSON.stringify(out, null, 2);
             }
@@ -563,6 +565,66 @@ function pollAgentResult(runId) {
   }, 1000);
 }
 
+function escHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str || '';
+  return d.innerHTML;
+}
+
+function scoreColor(score) {
+  if (score >= 70) return 'var(--uae-green)';
+  if (score >= 40) return 'var(--uae-orange, #f59e0b)';
+  return '#dc3545';
+}
+
+function formatLeadOutput(out) {
+  const modeLabel = out.mode === 'ai_prospecting' ? 'AI Prospecting' : 'Web Scrape';
+  let html = '<div style="margin-bottom:.75rem">'
+    + '<strong style="color:var(--uae-green);font-size:.95rem">' + out.leads_found + ' lead' + (out.leads_found !== 1 ? 's' : '') + ' found</strong>'
+    + '<div style="color:var(--uae-text-muted);font-size:.7rem;margin-top:.2rem">'
+    + '<i class="bi bi-gear me-1"></i>' + modeLabel + ' &middot; ' + out.sources_scanned + ' sources scanned'
+    + (out.sources_successful > 0 ? ' &middot; ' + out.sources_successful + ' successful' : '')
+    + '</div></div>';
+
+  for (const lead of out.leads) {
+    const name = escHtml((lead.name || 'Unknown').trim());
+    const score = lead.relevance_score || 0;
+    html += '<div style="border:1px solid var(--uae-border);border-radius:6px;padding:.6rem;margin-bottom:.5rem;background:rgba(255,255,255,.02)">'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.25rem">'
+      + '<strong style="color:#fff;font-size:.85rem"><i class="bi bi-person-fill me-1" style="color:var(--uae-accent)"></i>' + name + '</strong>'
+      + '<span style="background:' + scoreColor(score) + ';color:#fff;font-size:.6rem;padding:.15rem .4rem;border-radius:4px;font-weight:700">' + score + '/100</span>'
+      + '</div>';
+    if (lead.company) {
+      html += '<div style="color:var(--uae-accent);font-size:.75rem;margin-bottom:.2rem"><i class="bi bi-building me-1"></i>' + escHtml(lead.company) + '</div>';
+    }
+    if (lead.hook) {
+      html += '<div style="color:var(--uae-text);font-size:.78rem;margin:.3rem 0;padding:.35rem .5rem;background:rgba(79,140,255,.06);border-left:2px solid var(--uae-accent);border-radius:0 4px 4px 0;font-style:italic">"' + escHtml(lead.hook) + '"</div>';
+    }
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:.35rem;flex-wrap:wrap;gap:.3rem">'
+      + '<span style="color:var(--uae-text-muted);font-size:.7rem"><i class="bi bi-link-45deg me-1"></i>' + escHtml(lead.source || '') + '</span>'
+      + '<div>';
+    for (const tag of (lead.tags || [])) {
+      html += '<span style="background:var(--uae-dark);border:1px solid var(--uae-border);color:var(--uae-text-muted);font-size:.58rem;padding:.1rem .3rem;border-radius:3px;margin-left:.2rem">' + escHtml(tag) + '</span>';
+    }
+    html += '</div></div></div>';
+  }
+  return html;
+}
+
+function formatMessageOutput(out) {
+  let html = '';
+  if (out.message) {
+    html += '<div style="white-space:pre-wrap;color:var(--uae-text)">' + escHtml(out.message) + '</div>';
+  }
+  if (out.channel) {
+    html += '<div style="margin-top:.5rem;font-size:.75rem;color:var(--uae-text-muted)"><i class="bi bi-send me-1"></i>Channel: ' + escHtml(out.channel) + '</div>';
+  }
+  if (out.subject) {
+    html += '<div style="font-size:.75rem;color:var(--uae-text-muted)"><i class="bi bi-envelope me-1"></i>Subject: ' + escHtml(out.subject) + '</div>';
+  }
+  return html || escHtml(JSON.stringify(out, null, 2));
+}
+
 function saveIntegration(provider) {
   const profileId = '{{profile.id}}';
   const form = document.createElement('form');
@@ -595,4 +657,51 @@ function saveIntegration(provider) {
   document.body.appendChild(form);
   form.submit();
 }
+
+// ── Pre-fill Lead Generator defaults from profile data ──
+(function prefillLeadGenDefaults() {
+  const kwField = document.getElementById('run_lg_keywords');
+  if (!kwField || kwField.value.trim()) return;
+
+  const modeSelect = document.querySelector('[name="mode"]');
+  const mode = modeSelect ? modeSelect.value : 'business';
+
+  function parseField(name) {
+    const el = document.querySelector('[name="' + name + '"]');
+    if (!el || !el.value.trim()) return [];
+    try {
+      const parsed = JSON.parse(el.value);
+      return Array.isArray(parsed) ? parsed : [el.value];
+    } catch {
+      return el.value.split('\n').map(s => s.trim()).filter(Boolean);
+    }
+  }
+
+  function fieldVal(name) {
+    const el = document.querySelector('[name="' + name + '"]');
+    return el ? el.value.trim() : '';
+  }
+
+  let keywords = [];
+  if (mode === 'political') {
+    const riding = fieldVal('riding_name');
+    const candidate = fieldVal('candidate_name');
+    const pillars = parseField('policy_pillars');
+    pillars.slice(0, 3).forEach(function(p) {
+      keywords.push(p + (riding ? ' ' + riding : '') + ' voters');
+    });
+    if (candidate && riding) keywords.push(candidate + ' ' + riding + ' election');
+    if (riding) keywords.push(riding + ' community concerns');
+    if (riding) keywords.push(riding + ' local issues 2025');
+  } else {
+    const services = parseField('service_offerings');
+    services.slice(0, 3).forEach(function(s) {
+      keywords.push(s + ' help needed');
+      keywords.push('looking for ' + s + ' recommendation');
+    });
+    const context = fieldVal('industry_context');
+    if (context) keywords.push(context.split('.')[0].substring(0, 60) + ' emergency');
+  }
+  if (keywords.length) kwField.value = keywords.slice(0, 8).join('\n');
+})();
 </script>
